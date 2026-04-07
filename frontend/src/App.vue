@@ -16,5 +16,5 @@ onMounted(async () => {
 
 <template>
   <HelloWorld />
-  <p>Hello</p>
+  <p>Hello World!</p>
 </template>
