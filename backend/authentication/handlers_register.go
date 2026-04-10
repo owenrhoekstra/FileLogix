@@ -45,6 +45,8 @@ func RegisterChallengeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("Registration challenge created - RPID: %s", options.Response.RelyingParty.ID)
+
 	sessionID := regSessions.set(req.Email, sessionData)
 
 	w.Header().Set("Content-Type", "application/json")
