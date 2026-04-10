@@ -29,12 +29,13 @@ func InitWebAuthn() {
 		rpOrigin = "https://orh-home-server.tailac3f56.ts.net" // default for dev
 	}
 
-	// Build list of allowed origins (main + www variants)
+	// Build list of allowed origins (main + www variants + Cloudflare Access)
 	origins := []string{rpOrigin}
 	if rpid == "filelogix.org" {
 		origins = []string{
 			"https://filelogix.org",
 			"https://www.filelogix.org",
+			"https://orh-dev.cloudflareaccess.com", // Cloudflare Access domain
 		}
 	}
 
