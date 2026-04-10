@@ -1,6 +1,7 @@
 package authentication
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -72,6 +73,12 @@ func LoginVerifyHandler(w http.ResponseWriter, r *http.Request) {
 	_, err = webAuthn.FinishLogin(u, *sessionData, r)
 	if err != nil {
 		log.Println("FinishLogin error:", err)
+		// Try to provide more specific error information
+		if err.Error() == "Backup Eligible flag inconsistency detected during login validation" {
+			log.Println("Backup eligible flag issue detected - this may be due to credential metadata mismatch")
+			log.Println("User ID:", hex.EncodeToString(u.ID))
+			log.Println("Credential count:", len(u.WebAuthnCredentials()))
+		}
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
