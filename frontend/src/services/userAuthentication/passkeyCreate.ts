@@ -1,4 +1,4 @@
-import { base64ToUint8Array, uint8ArrayToBase64 } from './utilFunctions'
+import { base64ToUint8Array, uint8ArrayToBase64url } from './utilFunctions'
 
 type PublicKeyCredentialCreationOptionsJSON = {
     rp: PublicKeyCredentialRpEntity
@@ -18,12 +18,13 @@ type PublicKeyCredentialCreationOptionsJSON = {
 }
 
 type PasskeyCreateOptions = {
-    options: PublicKeyCredentialCreationOptionsJSON
+    options: {
+        publicKey: PublicKeyCredentialCreationOptionsJSON
+    }
     sessionId: string
 }
 
 export async function passkeyCreate(email: string): Promise<void> {
-    // 1. Get registration challenge + sessionId
     const res = await fetch('/api/auth/passkey/register-challenge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -34,27 +35,32 @@ export async function passkeyCreate(email: string): Promise<void> {
 
     const { options, sessionId }: PasskeyCreateOptions = await res.json()
 
-    // 2. Prepare WebAuthn options
+    // ✅ normalize binary properly
+    const challenge = base64ToUint8Array(options.publicKey.challenge)
+    const userId = base64ToUint8Array(options.publicKey.user.id)
+
     const pk: PublicKeyCredentialCreationOptions = {
         rp: options.publicKey.rp,
         user: {
             ...options.publicKey.user,
-            id: base64ToUint8Array(options.publicKey.user.id)
+            id: userId.buffer as ArrayBuffer
         },
-        challenge: base64ToUint8Array(options.publicKey.challenge).buffer as ArrayBuffer,
+        challenge: challenge.buffer as ArrayBuffer,
         pubKeyCredParams: options.publicKey.pubKeyCredParams,
     }
 
     if (options.publicKey.excludeCredentials) {
         pk.excludeCredentials = options.publicKey.excludeCredentials.map(
-            (cred: PublicKeyCredentialDescriptor) => ({
-                ...cred,
-                id: new Uint8Array(base64ToUint8Array(cred.id)).buffer
-            })
+            (cred) => {
+                const idBytes = base64ToUint8Array(cred.id)
+                return {
+                    ...cred,
+                    id: idBytes.buffer as ArrayBuffer
+                }
+            }
         )
     }
 
-    // 3. Create credential
     const credential = await navigator.credentials.create({
         publicKey: pk
     }) as PublicKeyCredential | null
@@ -63,25 +69,25 @@ export async function passkeyCreate(email: string): Promise<void> {
 
     const response = credential.response as AuthenticatorAttestationResponse
 
-    // 4. Send to backend WITH sessionId
     const regRes = await fetch('/api/auth/passkey/register-verify', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Email': email,
+            'X-Session-Id': sessionId
+        },
         body: JSON.stringify({
-            email,
-            sessionId, // 🔥 REQUIRED NOW
-            id: uint8ArrayToBase64(credential.rawId),
-            rawId: uint8ArrayToBase64(credential.rawId),
+            id: uint8ArrayToBase64url(new Uint8Array(credential.rawId)),
+            rawId: uint8ArrayToBase64url(new Uint8Array(credential.rawId)),
             type: credential.type,
             response: {
-                clientDataJSON: uint8ArrayToBase64(response.clientDataJSON),
-                attestationObject: uint8ArrayToBase64(response.attestationObject)
+                clientDataJSON: uint8ArrayToBase64url(new Uint8Array(response.clientDataJSON)),
+                attestationObject: uint8ArrayToBase64url(new Uint8Array(response.attestationObject))
             }
         })
     })
 
     if (!regRes.ok) throw new Error('Registration failed')
 
-    // 5. Redirect
     window.location.href = '/dashboard'
 }

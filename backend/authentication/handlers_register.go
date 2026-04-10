@@ -2,13 +2,11 @@ package authentication
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
-)
 
-type RegisterVerifyRequest struct {
-	Email     string `json:"email"`
-	SessionID string `json:"sessionId"`
-}
+	"file-tracker-backend/sessions"
+)
 
 func RegisterChallengeHandler(w http.ResponseWriter, r *http.Request) {
 	var req EmailRequest
@@ -39,7 +37,6 @@ func RegisterChallengeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// DB-backed session store (returns sessionId)
 	sessionID := regSessions.set(req.Email, sessionData)
 
 	w.Header().Set("Content-Type", "application/json")
@@ -50,24 +47,22 @@ func RegisterChallengeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func RegisterVerifyHandler(w http.ResponseWriter, r *http.Request) {
-	var req RegisterVerifyRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request", http.StatusBadRequest)
-		return
-	}
+	// 🔥 READ FROM HEADERS NOW
+	email := r.Header.Get("X-Email")
+	sessionID := r.Header.Get("X-Session-Id")
 
-	if req.Email == "" || req.SessionID == "" {
+	if email == "" || sessionID == "" {
 		http.Error(w, "missing email or sessionId", http.StatusBadRequest)
 		return
 	}
 
-	sessionData, ok := regSessions.get(req.SessionID)
+	sessionData, ok := regSessions.get(sessionID)
 	if !ok || sessionData == nil {
 		http.Error(w, "missing session", http.StatusBadRequest)
 		return
 	}
 
-	u, err := getUser(req.Email)
+	u, err := getUser(email)
 	if err != nil {
 		http.Error(w, "user lookup failed", http.StatusInternalServerError)
 		return
@@ -75,15 +70,28 @@ func RegisterVerifyHandler(w http.ResponseWriter, r *http.Request) {
 
 	credential, err := webAuthn.FinishRegistration(u, *sessionData, r)
 	if err != nil {
+		log.Println("FinishRegistration error:", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// persist credential to DB (NOT memory)
+	log.Println("Registration succeeded, credential ID:", credential.ID)
+
 	if err := saveCredential(u.ID, credential); err != nil {
+		log.Println("saveCredential error:", err)
 		http.Error(w, "failed to save credential", http.StatusInternalServerError)
 		return
 	}
+
+	// create login session after successful registration
+	token, err := sessions.CreateSession(u.ID)
+	if err != nil {
+		log.Println("session creation error:", err)
+		http.Error(w, "failed to create session", http.StatusInternalServerError)
+		return
+	}
+
+	sessions.SetSessionCookie(w, token)
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{

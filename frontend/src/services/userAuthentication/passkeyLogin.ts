@@ -1,4 +1,4 @@
-import { base64ToUint8Array, uint8ArrayToBase64 } from './utilFunctions'
+import { base64ToUint8Array, uint8ArrayToBase64url } from './utilFunctions'
 
 type PublicKeyCredentialRequestOptionsJSON = {
     challenge: string
@@ -21,7 +21,6 @@ type PasskeyLoginOptions = {
 }
 
 export async function passkeyLogin(email: string): Promise<void> {
-    // 1. Get challenge
     const res = await fetch('/api/auth/passkey/login-challenge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -32,25 +31,28 @@ export async function passkeyLogin(email: string): Promise<void> {
 
     const { options, sessionId }: PasskeyLoginOptions = await res.json()
 
-    // 2. Build WebAuthn request
+    // 🔧 normalize binary ONCE
+    const challengeBytes = base64ToUint8Array(options.publicKey.challenge)
+
     const pk: PublicKeyCredentialRequestOptions = {
-        challenge: base64ToUint8Array(options.publicKey.challenge),
+        challenge: challengeBytes.buffer as ArrayBuffer,
         rpId: options.publicKey.rpId,
         userVerification: options.publicKey.userVerification,
         timeout: options.publicKey.timeout
     }
 
     if (options.publicKey.allowCredentials?.length) {
-        pk.allowCredentials = options.publicKey.allowCredentials.map(
-            (cred: { id: string; type: PublicKeyCredentialType; transports?: AuthenticatorTransport[] }) => ({
+        pk.allowCredentials = options.publicKey.allowCredentials.map((cred) => {
+            const idBytes = base64ToUint8Array(cred.id)
+
+            return {
                 type: cred.type,
-                id: base64ToUint8Array(cred.id),
+                id: idBytes.buffer as ArrayBuffer,
                 transports: cred.transports
-            })
-        )
+            }
+        })
     }
 
-    // 3. Get credential
     const credential = await navigator.credentials.get({
         publicKey: pk
     }) as PublicKeyCredential | null
@@ -59,22 +61,23 @@ export async function passkeyLogin(email: string): Promise<void> {
 
     const response = credential.response as AuthenticatorAssertionResponse
 
-    // 4. Send to backend (NOW includes sessionId)
     const authRes = await fetch('/api/auth/passkey/login-verify', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Email': email,
+            'X-Session-Id': sessionId
+        },
         body: JSON.stringify({
-            email,
-            sessionId, // 🔥 REQUIRED NOW
-            id: uint8ArrayToBase64(credential.rawId),
-            rawId: uint8ArrayToBase64(credential.rawId),
+            id: uint8ArrayToBase64url(new Uint8Array(credential.rawId)),
+            rawId: uint8ArrayToBase64url(new Uint8Array(credential.rawId)),
             type: credential.type,
             response: {
-                authenticatorData: uint8ArrayToBase64(response.authenticatorData),
-                clientDataJSON: uint8ArrayToBase64(response.clientDataJSON),
-                signature: uint8ArrayToBase64(response.signature),
+                authenticatorData: uint8ArrayToBase64url(new Uint8Array(response.authenticatorData)),
+                clientDataJSON: uint8ArrayToBase64url(new Uint8Array(response.clientDataJSON)),
+                signature: uint8ArrayToBase64url(new Uint8Array(response.signature)),
                 userHandle: response.userHandle
-                    ? uint8ArrayToBase64(response.userHandle)
+                    ? uint8ArrayToBase64url(new Uint8Array(response.userHandle))
                     : null
             }
         })
@@ -82,6 +85,5 @@ export async function passkeyLogin(email: string): Promise<void> {
 
     if (!authRes.ok) throw new Error('Authentication failed')
 
-    // 5. Redirect
     window.location.href = '/dashboard'
 }

@@ -2,14 +2,12 @@ package authentication
 
 import (
 	"encoding/json"
-	"file-tracker-backend/database"
+	"log"
 	"net/http"
-)
 
-type LoginVerifyRequest struct {
-	Email     string `json:"email"`
-	SessionID string `json:"sessionId"`
-}
+	"file-tracker-backend/database"
+	"file-tracker-backend/sessions"
+)
 
 func LoginChallengeHandler(w http.ResponseWriter, r *http.Request) {
 	var req EmailRequest
@@ -40,7 +38,6 @@ func LoginChallengeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// store session in DB-backed store (returns sessionId internally)
 	sessionID := loginSessions.set(req.Email, sessionData)
 
 	w.Header().Set("Content-Type", "application/json")
@@ -51,24 +48,22 @@ func LoginChallengeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func LoginVerifyHandler(w http.ResponseWriter, r *http.Request) {
-	var req LoginVerifyRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request", http.StatusBadRequest)
-		return
-	}
+	// 🔥 READ FROM HEADERS (same as registration)
+	email := r.Header.Get("X-Email")
+	sessionID := r.Header.Get("X-Session-Id")
 
-	if req.Email == "" || req.SessionID == "" {
+	if email == "" || sessionID == "" {
 		http.Error(w, "missing email or sessionId", http.StatusBadRequest)
 		return
 	}
 
-	sessionData, ok := loginSessions.get(req.SessionID)
+	sessionData, ok := loginSessions.get(sessionID)
 	if !ok || sessionData == nil {
 		http.Error(w, "missing session", http.StatusBadRequest)
 		return
 	}
 
-	u, err := getUser(req.Email)
+	u, err := getUser(email)
 	if err != nil {
 		http.Error(w, "user lookup failed", http.StatusInternalServerError)
 		return
@@ -76,15 +71,26 @@ func LoginVerifyHandler(w http.ResponseWriter, r *http.Request) {
 
 	_, err = webAuthn.FinishLogin(u, *sessionData, r)
 	if err != nil {
+		log.Println("FinishLogin error:", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// cleanup session (DB-backed)
+	// 🔥 CREATE REAL SESSION (this is what you were missing)
+	token, err := sessions.CreateSession(u.ID)
+	if err != nil {
+		log.Println("session creation error:", err)
+		http.Error(w, "failed to create session", http.StatusInternalServerError)
+		return
+	}
+
+	sessions.SetSessionCookie(w, token)
+
+	// cleanup WebAuthn session
 	_, _ = database.DB.Exec(`
 		DELETE FROM webauthn_sessions
 		WHERE id = $1
-	`, req.SessionID)
+	`, sessionID)
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{

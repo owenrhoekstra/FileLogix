@@ -14,7 +14,14 @@ export function base64ToUint8Array(
     return Uint8Array.from(binary, c => c.charCodeAt(0))
 }
 
-export function uint8ArrayToBase64(buffer: ArrayBuffer | Uint8Array): string {
-    const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer)
-    return btoa(String.fromCharCode(...bytes))
+export function uint8ArrayToBase64url(bytes: Uint8Array): string {
+    let binary = ''
+    for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i])
+    }
+
+    return btoa(binary)
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '')
 }

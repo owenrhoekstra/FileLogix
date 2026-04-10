@@ -10,6 +10,11 @@ const routes: RouteRecordRaw[] = [
         path: '/print',
         component: () =>
             import('../views/labelPrint.vue')
+    },
+    {
+        path: '/dashboard',
+        component: () =>
+            import('../views/mainDashboard.vue')
     }
 ]
 

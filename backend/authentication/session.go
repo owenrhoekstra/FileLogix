@@ -38,7 +38,7 @@ func (s *DBSessionStore) set(email string, data *webauthn.SessionData) string {
 		email,
 		data.Challenge,
 		encoded,
-		time.Now().Add(10*time.Minute),
+		time.Now().Add(3*time.Minute),
 	)
 
 	return sessionID
