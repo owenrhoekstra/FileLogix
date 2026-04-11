@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="SqlDialectMappings">
-    <file url="file://$PROJECT_DIR$/backend/database/migrations/001_init.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/backend/database/migrations/000001_init.up.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/backend/database/migrations/000004_allowed_users.up.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/backend/database/migrations/000005_add_user_roles.up.sql" dialect="PostgreSQL" />
     <file url="PROJECT" dialect="PostgreSQL" />
   </component>
 </project>

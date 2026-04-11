@@ -1,8 +1,10 @@
-package sessions
+package middleware
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -15,23 +17,29 @@ type Session struct {
 	ExpiresAt time.Time
 }
 
-// generate secure token
+const sessionTTL = 6 * time.Hour
+
 func newSessionToken() string {
 	b := make([]byte, 32)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
 }
 
-// CREATE session
 func CreateSession(userID []byte) (string, error) {
 	token := newSessionToken()
-	expires := time.Now().Add(5 * time.Minute) // 1 day login
 
-	_, err := database.DB.Exec(`
-		INSERT INTO sessions (token, user_id, expires_at)
-		VALUES ($1, $2, $3)
-	`, token, userID, expires)
+	s := Session{
+		ID:        token,
+		UserID:    userID,
+		ExpiresAt: time.Now().Add(sessionTTL),
+	}
 
+	data, err := json.Marshal(s)
+	if err != nil {
+		return "", err
+	}
+
+	err = database.RDB.Set(context.Background(), "session:"+token, data, sessionTTL).Err()
 	if err != nil {
 		return "", err
 	}
@@ -39,34 +47,24 @@ func CreateSession(userID []byte) (string, error) {
 	return token, nil
 }
 
-// VALIDATE session
 func GetSession(token string) (*Session, error) {
-	row := database.DB.QueryRow(`
-		SELECT user_id, expires_at
-		FROM sessions
-		WHERE token = $1
-		AND expires_at > NOW()
-	`, token)
+	data, err := database.RDB.Get(context.Background(), "session:"+token).Bytes()
+	if err != nil {
+		return nil, err
+	}
 
 	var s Session
-	s.ID = token
-
-	err := row.Scan(&s.UserID, &s.ExpiresAt)
-	if err != nil {
+	if err := json.Unmarshal(data, &s); err != nil {
 		return nil, err
 	}
 
 	return &s, nil
 }
 
-// DELETE session (logout)
 func DeleteSession(token string) {
-	_, _ = database.DB.Exec(`
-		DELETE FROM sessions WHERE token = $1
-	`, token)
+	_ = database.RDB.Del(context.Background(), "session:"+token).Err()
 }
 
-// SET COOKIE
 func SetSessionCookie(w http.ResponseWriter, token string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session",
@@ -74,12 +72,11 @@ func SetSessionCookie(w http.ResponseWriter, token string) {
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   true,
-		MaxAge:   0,
+		MaxAge:   int(sessionTTL.Seconds()),
 		SameSite: http.SameSiteLaxMode,
 	})
 }
 
-// GET COOKIE
 func GetSessionFromRequest(r *http.Request) (string, error) {
 	cookie, err := r.Cookie("session")
 	if err != nil {

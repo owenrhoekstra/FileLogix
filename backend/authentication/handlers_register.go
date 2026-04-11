@@ -5,7 +5,9 @@ import (
 	"log"
 	"net/http"
 
-	"file-tracker-backend/sessions"
+	"file-tracker-backend/middleware"
+
+	"github.com/go-webauthn/webauthn/webauthn"
 )
 
 func RegisterChallengeHandler(w http.ResponseWriter, r *http.Request) {
@@ -32,18 +34,10 @@ func RegisterChallengeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 🔥 CHECK: if user already has a credential, they should login instead
-	if userAlreadyHasCredential(u.ID) {
-		log.Println("User", req.Email, "already has a passkey, registration blocked")
-		http.Error(w, "user already has a passkey, use login instead", http.StatusBadRequest)
-		return
-	}
-
-	options, sessionData, err := webAuthn.BeginRegistration(u)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	options, sessionData, err := webAuthn.BeginRegistration(
+		u,
+		webauthn.WithExclusions(credentialsToDescriptors(u.WebAuthnCredentials())),
+	)
 
 	log.Printf("Registration challenge created - RPID: %s", options.Response.RelyingParty.ID)
 
@@ -78,11 +72,6 @@ func RegisterVerifyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if userAlreadyHasCredential(u.ID) {
-		http.Error(w, "already registered", http.StatusBadRequest)
-		return
-	}
-
 	credential, err := webAuthn.FinishRegistration(u, *sessionData, r)
 	if err != nil {
 		log.Println("FinishRegistration error:", err)
@@ -99,25 +88,17 @@ func RegisterVerifyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// create login session after successful registration
-	token, err := sessions.CreateSession(u.ID)
+	token, err := middleware.CreateSession(u.ID)
 	if err != nil {
 		log.Println("session creation error:", err)
 		http.Error(w, "failed to create session", http.StatusInternalServerError)
 		return
 	}
 
-	sessions.SetSessionCookie(w, token)
+	middleware.SetSessionCookie(w, token)
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{
 		"status": "ok",
 	})
-}
-
-func userAlreadyHasCredential(userID []byte) bool {
-	creds, err := getCredentialsByUserID(userID)
-	if err != nil {
-		return false
-	}
-	return len(creds) > 0
 }

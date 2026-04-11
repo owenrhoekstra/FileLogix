@@ -1,12 +1,14 @@
 package authentication
 
 import (
+	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 )
 
 type User struct {
 	ID    []byte
 	Email string
+	Role  string
 }
 
 func (u User) WebAuthnID() []byte {
@@ -31,4 +33,16 @@ func (u User) WebAuthnCredentials() []webauthn.Credential {
 
 func (u User) WebAuthnIcon() string {
 	return ""
+}
+
+func credentialsToDescriptors(creds []webauthn.Credential) []protocol.CredentialDescriptor {
+	descriptors := make([]protocol.CredentialDescriptor, len(creds))
+	for i, c := range creds {
+		descriptors[i] = protocol.CredentialDescriptor{
+			Type:         protocol.PublicKeyCredentialType,
+			CredentialID: c.ID,
+			Transport:    c.Transport,
+		}
+	}
+	return descriptors
 }

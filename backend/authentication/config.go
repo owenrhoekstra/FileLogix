@@ -35,7 +35,7 @@ func InitWebAuthn() {
 		origins = []string{
 			"https://filelogix.org",
 			"https://www.filelogix.org",
-			"https://orh-dev.cloudflareaccess.com", // Cloudflare Access domain
+			"https://orh-dev.cloudflareaccess.com",
 		}
 	}
 

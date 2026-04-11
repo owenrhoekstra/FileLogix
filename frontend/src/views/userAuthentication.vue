@@ -5,7 +5,7 @@ import Button from 'primevue/button'
 import { z } from 'zod'
 import { passkeyLogin } from '../services/userAuthentication/passkeyLogin'
 import { passkeyCreate } from '../services/userAuthentication/passkeyCreate'
-import { apiFetch } from '../services/logout/logoutRedirect'
+import { apiFetch } from '../services/logout/autoLogoutRedirect.ts'
 
 const error = ref<string | null>(null)
 const email = ref('')

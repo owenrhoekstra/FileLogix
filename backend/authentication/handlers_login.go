@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"file-tracker-backend/database"
-	"file-tracker-backend/sessions"
+	"file-tracker-backend/middleware"
 )
 
 func LoginChallengeHandler(w http.ResponseWriter, r *http.Request) {
@@ -70,39 +70,43 @@ func LoginVerifyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = webAuthn.FinishLogin(u, *sessionData, r)
+	credential, err := webAuthn.FinishLogin(u, *sessionData, r)
 	if err != nil {
 		log.Println("FinishLogin error:", err)
-		// Handle backup eligible flag inconsistency - this can happen with credential metadata mismatches
-		if err.Error() == "Backup Eligible flag inconsistency detected during login validation" {
-			log.Println("Backup eligible flag issue detected - attempting alternative validation approach")
-			log.Println("User ID:", hex.EncodeToString(u.ID))
-			log.Println("Credential count:", len(u.WebAuthnCredentials()))
+		http.Error(w, "authentication failed", http.StatusUnauthorized)
+		return
+	}
 
-			// For now, let's try to continue with session creation despite this validation error
-			// The credential is valid, it's just the backup eligible flag that's inconsistent
-			log.Println("Proceeding with session creation despite backup eligible flag issue...")
-		} else {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
+	// Update stored credential flags (handles BE/BS flag drift)
+	credIDHex := hex.EncodeToString(credential.ID)
+	_, err = database.DB.Exec(`
+    UPDATE credentials
+    SET backup_eligible = $1,
+        backup_state    = $2,
+        sign_count      = $3
+    WHERE credential_id = $4
+      AND user_id       = $5
+`,
+		credential.Flags.BackupEligible,
+		credential.Flags.BackupState,
+		credential.Authenticator.SignCount,
+		credIDHex,
+		hex.EncodeToString(u.ID),
+	)
+	if err != nil {
+		log.Println("credential update error:", err)
+		// non-fatal, session is still valid
 	}
 
 	// 🔥 CREATE REAL SESSION (this is what you were missing)
-	token, err := sessions.CreateSession(u.ID)
+	token, err := middleware.CreateSession(u.ID)
 	if err != nil {
 		log.Println("session creation error:", err)
 		http.Error(w, "failed to create session", http.StatusInternalServerError)
 		return
 	}
 
-	sessions.SetSessionCookie(w, token)
-
-	// cleanup WebAuthn session
-	_, _ = database.DB.Exec(`
-		DELETE FROM webauthn_sessions
-		WHERE id = $1
-	`, sessionID)
+	middleware.SetSessionCookie(w, token)
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{

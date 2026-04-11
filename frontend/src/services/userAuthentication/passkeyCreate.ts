@@ -1,5 +1,5 @@
 import { base64ToUint8Array, uint8ArrayToBase64url } from './utilFunctions'
-import { apiFetch } from '../logout/logoutRedirect'
+import { apiFetch } from '../logout/autoLogoutRedirect.ts'
 
 type PublicKeyCredentialCreationOptionsJSON = {
     rp: PublicKeyCredentialRpEntity

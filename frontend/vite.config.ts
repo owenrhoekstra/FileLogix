@@ -33,7 +33,7 @@ export default defineConfig({
     })
   ],
   server: {
-    allowedHosts: ["orh-home-server.tailac3f56.ts.net"],
+    allowedHosts: ["orh-home-server.tailac3f56.ts.net", "filelogix.org"],
     proxy: {
       '/api': {
         target: 'http://localhost:8080',

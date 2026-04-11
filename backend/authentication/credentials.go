@@ -21,8 +21,10 @@ func saveCredential(userID []byte, cred *webauthn.Credential) error {
 			public_key,
 			attestation_type,
 			transports,
-			sign_count
-		) VALUES ($1,$2,$3,$4,$5,$6)
+			sign_count,
+			backup_eligible,
+			backup_state
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
 		ON CONFLICT (credential_id) DO NOTHING
 	`,
 		userID,
@@ -31,6 +33,8 @@ func saveCredential(userID []byte, cred *webauthn.Credential) error {
 		cred.AttestationType,
 		pq.Array(cred.Transport),
 		cred.Authenticator.SignCount,
+		cred.Flags.BackupEligible,
+		cred.Flags.BackupState,
 	)
 
 	if err != nil {
@@ -44,7 +48,7 @@ func getCredentialsByUserID(userID []byte) ([]webauthn.Credential, error) {
 	log.Println("Looking up credentials for user ID (bytes):", userID)
 
 	rows, err := database.DB.Query(`
-		SELECT credential_id, public_key, attestation_type, transports, sign_count
+		SELECT credential_id, public_key, attestation_type, transports, sign_count, backup_eligible, backup_state
 		FROM credentials
 		WHERE user_id = $1
 	`, userID)
@@ -66,13 +70,14 @@ func getCredentialsByUserID(userID []byte) ([]webauthn.Credential, error) {
 			&cred.AttestationType,
 			&transports,
 			&cred.Authenticator.SignCount,
+			&cred.Flags.BackupEligible,
+			&cred.Flags.BackupState,
 		)
 		if err != nil {
 			log.Println("Error scanning credential row:", err)
 			return nil, err
 		}
 
-		// Convert pq.StringArray back to webauthn transport array
 		if transports != nil {
 			for _, t := range transports {
 				cred.Transport = append(cred.Transport, protocol.AuthenticatorTransport(t))

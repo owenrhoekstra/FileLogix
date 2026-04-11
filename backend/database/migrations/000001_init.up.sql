@@ -1,8 +1,3 @@
-create sequence test_sync_id_seq
-    as integer;
-
-alter sequence test_sync_id_seq owner to owenrhoekstra;
-
 create table users
 (
     id    bytea not null
@@ -18,15 +13,17 @@ create table credentials
 (
     id               serial
         primary key,
-    user_id          bytea            not null
+    user_id          bytea                 not null
         references users
             on delete cascade,
-    credential_id    bytea            not null
+    credential_id    bytea                 not null
         unique,
-    public_key       bytea            not null,
-    attestation_type text             not null,
+    public_key       bytea                 not null,
+    attestation_type text                  not null,
     transports       text[],
-    sign_count       bigint default 0 not null
+    sign_count       bigint  default 0     not null,
+    backup_eligible  boolean default false not null,
+    backup_state     boolean default false not null
 );
 
 alter table credentials
