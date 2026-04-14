@@ -31,7 +31,6 @@ async function handleSubmit() {
     })
 
     if (!checkRes || !checkRes.ok) {
-      error.value = 'Email check failed'
       return
     }
 
@@ -39,11 +38,6 @@ async function handleSubmit() {
 
     if (!checkData) {
       error.value = 'Server error'
-      return
-    }
-
-    if (!checkData.allowed) {
-      error.value = 'Email not allowed'
       return
     }
 

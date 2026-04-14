@@ -1,5 +1,6 @@
 import { base64ToUint8Array, uint8ArrayToBase64url } from './utilFunctions'
 import { apiFetch } from '../logout/autoLogoutRedirect.ts'
+import router from "../../router/index.ts"
 
 type PublicKeyCredentialCreationOptionsJSON = {
     rp: PublicKeyCredentialRpEntity
@@ -44,6 +45,11 @@ export async function passkeyCreate(email: string): Promise<void> {
     }
 
     const { options, sessionId }: PasskeyCreateOptions = await res.json()
+
+// Fake 200 for non-whitelisted emails — silently bail
+    if (!options) {
+        return
+    }
 
     // ✅ normalize binary properly
     const challenge = base64ToUint8Array(options.publicKey.challenge)
@@ -104,5 +110,5 @@ export async function passkeyCreate(email: string): Promise<void> {
         throw new Error(`Registration verification failed: ${errorText || regRes.statusText}`)
     }
 
-    window.location.href = '/dashboard'
+   await router.push('/dashboard')
 }

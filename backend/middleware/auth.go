@@ -20,9 +20,25 @@ func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 
 		session, err := GetSession(token)
 		if err != nil {
-			http.Error(w, "invalid session", http.StatusUnauthorized)
-			return
+
+			switch err {
+
+			case ErrSessionExpired:
+				http.Error(w, "session expired", http.StatusUnauthorized)
+				return
+
+			case ErrSessionIdle:
+				http.Error(w, "session idle timeout", http.StatusUnauthorized)
+				return
+
+			default:
+				http.Error(w, "invalid session", http.StatusUnauthorized)
+				return
+			}
 		}
+
+		// extend idle timer on every valid request
+		_ = TouchSession(session)
 
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, UserIDKey, session.UserID)

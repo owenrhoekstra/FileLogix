@@ -13,33 +13,36 @@ func CheckEmailHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+
+	// Not allowed — return same shape as allowed but hasPasskey false
+	// This prevents email enumeration of the whitelist
 	if !isAllowed(req.Email) {
-		http.Error(w, "email not allowed", http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"hasPasskey": false,
+		})
 		return
 	}
 
 	u, err := getUser(req.Email)
 	if err != nil {
 		log.Println("CheckEmailHandler: getUser error for", req.Email, ":", err)
-		http.Error(w, "user lookup failed", http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"hasPasskey": false,
+		})
 		return
 	}
 
 	hasPasskey := false
-
 	if u != nil {
 		creds, err := getCredentialsByUserID(u.ID)
 		if err == nil && len(creds) > 0 {
 			hasPasskey = true
 			log.Println("CheckEmailHandler:", req.Email, "has", len(creds), "credential(s)")
-		} else if err != nil {
-			log.Println("CheckEmailHandler: getCredentials error for user ID", string(u.ID), ":", err)
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"allowed":    true,
 		"hasPasskey": hasPasskey,
 	})
 }

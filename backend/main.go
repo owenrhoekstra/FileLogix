@@ -1,14 +1,15 @@
 package main
 
 import (
+	"FileLogix/authentication"
+	"FileLogix/database"
+	"FileLogix/middleware"
+	"FileLogix/routes"
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
-	"strconv"
 
-	"file-tracker-backend/authentication"
-	"file-tracker-backend/database"
-	"file-tracker-backend/middleware"
+	"github.com/didip/tollbooth/v7"
 )
 
 func main() {
@@ -17,27 +18,70 @@ func main() {
 	database.InitRedis()
 	database.RunMigrations(database.DB)
 
-	// 🔓 PUBLIC ROUTES
-	http.HandleFunc("/api/auth/check-email", authentication.CheckEmailHandler)
-	http.HandleFunc("/api/auth/passkey/register-challenge", authentication.RegisterChallengeHandler)
-	http.HandleFunc("/api/auth/passkey/register-verify", authentication.RegisterVerifyHandler)
-	http.HandleFunc("/api/auth/passkey/login-challenge", authentication.LoginChallengeHandler)
-	http.HandleFunc("/api/auth/passkey/login-verify", authentication.LoginVerifyHandler)
-	http.HandleFunc("/api/auth/logout", middleware.LogoutHandler)
+	emailLimiter := tollbooth.NewLimiter(1, nil) // stricter for enumeration
+	authLimiter := tollbooth.NewLimiter(3, nil)  // general auth endpoints
+	// Use real client IPs behind proxies (e.g., Cloudflare)
+	emailLimiter.SetIPLookups([]string{"CF-Connecting-IP", "X-Forwarded-For", "RemoteAddr"})
+	authLimiter.SetIPLookups([]string{"CF-Connecting-IP", "X-Forwarded-For", "RemoteAddr"})
 
-	http.HandleFunc("/api/auth/me", middleware.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
-		userID := r.Context().Value(middleware.UserIDKey).([]byte)
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
-			"userId": hex.EncodeToString(userID),
-		})
-	}))
+	mux := http.NewServeMux()
+
+	// 🔓 PUBLIC ROUTES
+	mux.Handle("/api/auth/check-email",
+		middleware.RateLimit(emailLimiter)(
+			http.HandlerFunc(authentication.CheckEmailHandler),
+		),
+	)
+
+	mux.Handle("/api/auth/passkey/register-challenge",
+		middleware.RateLimit(authLimiter)(
+			http.HandlerFunc(authentication.RegisterChallengeHandler),
+		),
+	)
+
+	mux.Handle("/api/auth/passkey/register-verify",
+		middleware.RateLimit(authLimiter)(
+			http.HandlerFunc(authentication.RegisterVerifyHandler),
+		),
+	)
+
+	mux.Handle("/api/auth/passkey/login-challenge",
+		middleware.RateLimit(authLimiter)(
+			http.HandlerFunc(authentication.LoginChallengeHandler),
+		),
+	)
+
+	mux.Handle("/api/auth/passkey/login-verify",
+		middleware.RateLimit(authLimiter)(
+			http.HandlerFunc(authentication.LoginVerifyHandler),
+		),
+	)
+
+	mux.Handle("/api/auth/logout",
+		middleware.RateLimit(authLimiter)(
+			http.HandlerFunc(middleware.LogoutHandler),
+		),
+	)
+
+	mux.Handle("/api/auth/me",
+		middleware.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
+			userID := r.Context().Value(middleware.UserIDKey).([]byte)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{
+				"userId": hex.EncodeToString(userID),
+			})
+		}),
+	)
 
 	// 🔒 PROTECTED ROUTES (example — add yours here)
-	http.HandleFunc("/api/protected/test", middleware.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
-		userID := r.Context().Value(middleware.UserIDKey).([]byte)
-		w.Write([]byte("You are authenticated. UserID length: " + strconv.Itoa(len(userID))))
-	}))
+	mux.Handle("/api/protected/",
+		middleware.RateLimit(authLimiter)(
+			http.StripPrefix("/api/protected", routes.ProtectedRoutes()),
+		),
+	)
 
-	http.ListenAndServe(":8080", nil)
+	handler := middleware.CORS(mux)
+	handler = middleware.SecurityHeaders(handler)
+
+	http.ListenAndServe(":8080", handler)
 }

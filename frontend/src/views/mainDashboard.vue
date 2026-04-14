@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Button from 'primevue/button'
 import { apiFetch } from '../services/logout/autoLogoutRedirect.ts'
+import router from "../router/index.ts";
 
 function test () {
   apiFetch('/api/protected/test', {})
@@ -11,7 +12,7 @@ async function logout() {
     method: 'POST',
     credentials: 'include',
   })
-  window.location.href = '/?logout=true'
+  await router.push('/?logout=true')
 }
 </script>
 

@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"file-tracker-backend/middleware"
+	"FileLogix/middleware"
 
 	"github.com/go-webauthn/webauthn/webauthn"
 )
@@ -22,8 +22,14 @@ func RegisterChallengeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+
 	if !isAllowed(req.Email) {
-		http.Error(w, "email not allowed", http.StatusForbidden)
+		// Return fake 200 to prevent email enumeration
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"options":   nil,
+			"sessionId": "",
+		})
 		return
 	}
 
@@ -38,12 +44,15 @@ func RegisterChallengeHandler(w http.ResponseWriter, r *http.Request) {
 		u,
 		webauthn.WithExclusions(credentialsToDescriptors(u.WebAuthnCredentials())),
 	)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	log.Printf("Registration challenge created - RPID: %s", options.Response.RelyingParty.ID)
 
 	sessionID := regSessions.set(req.Email, sessionData)
 
-	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"options":   options,
 		"sessionId": sessionID,
@@ -51,7 +60,6 @@ func RegisterChallengeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func RegisterVerifyHandler(w http.ResponseWriter, r *http.Request) {
-	// 🔥 READ FROM HEADERS NOW
 	email := r.Header.Get("X-Email")
 	sessionID := r.Header.Get("X-Session-Id")
 
@@ -87,7 +95,6 @@ func RegisterVerifyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// create login session after successful registration
 	token, err := middleware.CreateSession(u.ID)
 	if err != nil {
 		log.Println("session creation error:", err)
@@ -101,4 +108,12 @@ func RegisterVerifyHandler(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]string{
 		"status": "ok",
 	})
+}
+
+func userAlreadyHasCredential(userID []byte) bool {
+	creds, err := getCredentialsByUserID(userID)
+	if err != nil {
+		return false
+	}
+	return len(creds) > 0
 }

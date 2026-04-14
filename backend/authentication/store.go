@@ -1,10 +1,10 @@
 package authentication
 
 import (
+	"FileLogix/database"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
-	"file-tracker-backend/database"
 	"log"
 )
 

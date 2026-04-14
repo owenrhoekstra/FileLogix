@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"file-tracker-backend/database"
+	"FileLogix/database"
 
 	"github.com/go-webauthn/webauthn/webauthn"
 )

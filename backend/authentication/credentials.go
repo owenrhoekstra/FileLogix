@@ -3,7 +3,7 @@ package authentication
 import (
 	"log"
 
-	"file-tracker-backend/database"
+	"FileLogix/database"
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"

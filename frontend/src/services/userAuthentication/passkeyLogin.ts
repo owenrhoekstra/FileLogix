@@ -1,5 +1,6 @@
 import { base64ToUint8Array, uint8ArrayToBase64url } from './utilFunctions'
 import { apiFetch } from '../logout/autoLogoutRedirect.ts'
+import router from "../../router/index.ts";
 
 type PublicKeyCredentialRequestOptionsJSON = {
     challenge: string
@@ -96,5 +97,5 @@ export async function passkeyLogin(email: string): Promise<void> {
         throw new Error(`Authentication verification failed: ${errorText || authRes.statusText}`)
     }
 
-    window.location.href = '/dashboard'
+    await router.push('/dashboard')
 }

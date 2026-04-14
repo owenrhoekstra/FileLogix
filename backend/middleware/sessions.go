@@ -5,19 +5,30 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"log"
 	"net/http"
 	"time"
 
-	"file-tracker-backend/database"
+	"FileLogix/database"
 )
 
 type Session struct {
 	ID        string
 	UserID    []byte
 	ExpiresAt time.Time
+	LastSeen  time.Time
 }
 
-const sessionTTL = 6 * time.Hour
+const (
+	sessionTTL  = 6 * time.Hour
+	idleTimeout = 15 * time.Minute
+)
+
+var (
+	ErrSessionExpired = errors.New("expired")
+	ErrSessionIdle    = errors.New("idle timeout")
+)
 
 func newSessionToken() string {
 	b := make([]byte, 32)
@@ -32,6 +43,7 @@ func CreateSession(userID []byte) (string, error) {
 		ID:        token,
 		UserID:    userID,
 		ExpiresAt: time.Now().Add(sessionTTL),
+		LastSeen:  time.Now(),
 	}
 
 	data, err := json.Marshal(s)
@@ -58,11 +70,25 @@ func GetSession(token string) (*Session, error) {
 		return nil, err
 	}
 
+	if time.Now().After(s.ExpiresAt) {
+		if err := DeleteSession(token); err != nil {
+			log.Printf("failed to delete session %s: %v", token, err)
+		}
+		return nil, ErrSessionExpired
+	}
+
+	if time.Since(s.LastSeen) > idleTimeout {
+		if err := DeleteSession(token); err != nil {
+			log.Printf("failed to delete session %s: %v", token, err)
+		}
+		return nil, ErrSessionIdle
+	}
+
 	return &s, nil
 }
 
-func DeleteSession(token string) {
-	_ = database.RDB.Del(context.Background(), "session:"+token).Err()
+func DeleteSession(token string) error {
+	return database.RDB.Del(context.Background(), "session:"+token).Err()
 }
 
 func SetSessionCookie(w http.ResponseWriter, token string) {
@@ -83,4 +109,29 @@ func GetSessionFromRequest(r *http.Request) (string, error) {
 		return "", err
 	}
 	return cookie.Value, nil
+}
+
+func TouchSession(s *Session) error {
+	s.LastSeen = time.Now()
+
+	data, err := json.Marshal(s)
+	if err != nil {
+		return err
+	}
+
+	key := "session:" + s.ID
+
+	// ONLY update if session still exists
+	exists, err := database.RDB.Exists(context.Background(), key).Result()
+	if err != nil || exists == 0 {
+		return nil // session already deleted, do nothing
+	}
+
+	remaining := time.Until(s.ExpiresAt)
+	if remaining <= 0 {
+		_ = DeleteSession(s.ID)
+		return nil
+	}
+
+	return database.RDB.Set(context.Background(), key, data, remaining).Err()
 }

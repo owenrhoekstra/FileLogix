@@ -2,12 +2,11 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [
     vue(),
     VitePWA({
-      registerType: 'autoUpdate',
+      injectRegister: null,
       manifest: {
         name: 'FileLogix',
         short_name: 'FileLogix',
@@ -24,16 +23,11 @@ export default defineConfig({
             type: 'image/png'
           }
         ]
-      },
-      workbox: {
-        cleanupOutdatedCaches: true,
-        clientsClaim: true,
-        skipWaiting: true
       }
     })
   ],
   server: {
-    allowedHosts: ["orh-home-server.tailac3f56.ts.net", "filelogix.org"],
+    allowedHosts: ['orh-home-server.tailac3f56.ts.net', 'filelogix.org'],
     proxy: {
       '/api': {
         target: 'http://localhost:8080',

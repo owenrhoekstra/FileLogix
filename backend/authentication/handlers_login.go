@@ -6,8 +6,8 @@ import (
 	"log"
 	"net/http"
 
-	"file-tracker-backend/database"
-	"file-tracker-backend/middleware"
+	"FileLogix/database"
+	"FileLogix/middleware"
 )
 
 func LoginChallengeHandler(w http.ResponseWriter, r *http.Request) {

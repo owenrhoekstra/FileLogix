@@ -1,0 +1,44 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+    volumes:
+      - vue_dist:/app/dist
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      - WEBAUTHN_RPID=${WEBAUTHN_RPID}
+      - WEBAUTHN_RP_ORIGIN=${WEBAUTHN_RP_ORIGIN}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    volumes:
+      - /var/run/postgresql:/var/run/postgresql
+    depends_on:
+      - frontend
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "3500:3500"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - vue_dist:/srv/www
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    restart: unless-stopped
+
+volumes:
+  vue_dist:
