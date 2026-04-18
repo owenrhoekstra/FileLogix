@@ -22,6 +22,8 @@ services:
     depends_on:
       - frontend
       - redis
+      - ocr
+      - cloudflared
     restart: unless-stopped
 
 
@@ -49,6 +51,9 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:6380:6379"
+
+  ocr:
+    build: ./ocr
 
 volumes:
   vue_dist:
