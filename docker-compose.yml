@@ -2,8 +2,10 @@ services:
   frontend:
     build:
       context: ./frontend
+      args:
+        - VITE_API_URL=${VITE_API_URL}
     volumes:
-      - vue_dist:/app/dist
+      - vue_dist:/app/dist-volume
 
   backend:
     build:

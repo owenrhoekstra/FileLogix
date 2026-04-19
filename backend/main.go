@@ -3,6 +3,7 @@ package main
 import (
 	"FileLogix/authentication"
 	"FileLogix/database"
+	"FileLogix/elevation"
 	"FileLogix/middleware"
 	"FileLogix/routes"
 	"encoding/hex"
@@ -18,9 +19,11 @@ func main() {
 	database.InitRedis()
 	database.RunMigrations(database.DB)
 
-	emailLimiter := tollbooth.NewLimiter(1, nil) // stricter for enumeration
-	authLimiter := tollbooth.NewLimiter(3, nil)  // general auth endpoints
-	// Use real client IPs behind proxies (e.g., Cloudflare)
+	// Wire WebAuthn instance into elevation package
+	elevation.WebAuthn = authentication.GetWebAuthn()
+
+	emailLimiter := tollbooth.NewLimiter(1, nil)
+	authLimiter := tollbooth.NewLimiter(3, nil)
 	emailLimiter.SetIPLookups([]string{"CF-Connecting-IP", "X-Forwarded-For", "RemoteAddr"})
 	authLimiter.SetIPLookups([]string{"CF-Connecting-IP", "X-Forwarded-For", "RemoteAddr"})
 
@@ -63,6 +66,7 @@ func main() {
 		),
 	)
 
+	// 🔒 AUTHENTICATED ROUTES
 	mux.Handle("/api/auth/me",
 		middleware.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 			userID := r.Context().Value(middleware.UserIDKey).([]byte)
@@ -73,7 +77,24 @@ func main() {
 		}),
 	)
 
-	// 🔒 PROTECTED ROUTES (example — add yours here)
+	// 🔒 ELEVATION ROUTES
+	mux.Handle("/api/auth/elevate/challenge",
+		middleware.RateLimit(authLimiter)(
+			middleware.RequireAuth(
+				http.HandlerFunc(elevation.ChallengeHandler),
+			),
+		),
+	)
+
+	mux.Handle("/api/auth/elevate/verify",
+		middleware.RateLimit(authLimiter)(
+			middleware.RequireAuth(
+				http.HandlerFunc(elevation.VerifyHandler),
+			),
+		),
+	)
+
+	// 🔒 PROTECTED ROUTES
 	mux.Handle("/api/protected/",
 		middleware.RateLimit(authLimiter)(
 			http.StripPrefix("/api/protected", routes.ProtectedRoutes()),

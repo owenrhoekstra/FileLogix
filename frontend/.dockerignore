@@ -1,0 +1,23 @@
+# Dependencies (reinstalled during build)
+node_modules
+
+# Build output (generated during build)
+dist
+
+# Docker files
+Dockerfile
+docker-compose.yml
+
+# Environment files
+.env
+.env.production
+
+# Editor configuration
+.vscode
+
+# Documentation
+README.md
+
+# Git and Docker files
+.gitignore
+.dockerignore

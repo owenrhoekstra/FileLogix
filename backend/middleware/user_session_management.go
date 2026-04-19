@@ -14,10 +14,12 @@ import (
 )
 
 type Session struct {
-	ID        string
-	UserID    []byte
-	ExpiresAt time.Time
-	LastSeen  time.Time
+	ID          string
+	UserID      []byte
+	ExpiresAt   time.Time
+	LastSeen    time.Time
+	RoleName    string
+	Permissions map[string]bool
 }
 
 const (
@@ -36,14 +38,16 @@ func newSessionToken() string {
 	return hex.EncodeToString(b)
 }
 
-func CreateSession(userID []byte) (string, error) {
+func CreateSession(userID []byte, roleName string, permissions map[string]bool) (string, error) {
 	token := newSessionToken()
 
 	s := Session{
-		ID:        token,
-		UserID:    userID,
-		ExpiresAt: time.Now().Add(sessionTTL),
-		LastSeen:  time.Now(),
+		ID:          token,
+		UserID:      userID,
+		ExpiresAt:   time.Now().Add(sessionTTL),
+		LastSeen:    time.Now(),
+		RoleName:    roleName,
+		Permissions: permissions,
 	}
 
 	data, err := json.Marshal(s)
@@ -121,10 +125,9 @@ func TouchSession(s *Session) error {
 
 	key := "session:" + s.ID
 
-	// ONLY update if session still exists
 	exists, err := database.RDB.Exists(context.Background(), key).Result()
 	if err != nil || exists == 0 {
-		return nil // session already deleted, do nothing
+		return nil
 	}
 
 	remaining := time.Until(s.ExpiresAt)

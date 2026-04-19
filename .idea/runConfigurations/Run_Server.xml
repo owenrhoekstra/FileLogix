@@ -1,13 +1,13 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Run Server" type="GoApplicationRunConfiguration" factoryName="Go Application">
-    <module name="file-tracker" />
+    <module name="FileLogix" />
     <working_directory value="$PROJECT_DIR$/backend" />
     <envs>
       <env name="DB_PASSWORD" value="Space~Nebula~Galaxy01294" />
     </envs>
     <kind value="FILE" />
     <package value="file-tracker-backend" />
-    <directory value="$PROJECT_DIR$" />
+    <directory value="$PROJECT_DIR$/backend" />
     <filePath value="$PROJECT_DIR$/backend/main.go" />
     <method v="2" />
   </configuration>

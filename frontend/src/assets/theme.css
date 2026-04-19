@@ -1,0 +1,14 @@
+html:root {
+    --p-primary-color: #3b82f6;
+    --p-primary-hover-color: #2563eb;
+    --p-primary-active-color: #1d4ed8;
+
+    --p-primary-contrast-color: #ffffff;
+
+    --p-surface-ground: #f8fafc;
+    --p-surface-card: #ffffff;
+
+    --p-text-color: #111827;
+
+    --p-border-radius: 8px;
+}

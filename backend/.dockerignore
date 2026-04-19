@@ -1,0 +1,27 @@
+# Dependencies (reinstalled during build)
+vendor
+
+# Environment files
+.env
+.env.*
+
+# Git and Docker files
+.git
+.gitignore
+.dockerignore
+
+# Docker files
+Dockerfile
+docker-compose.yml
+
+# Documentation
+*.md
+
+# Build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+filelogix-backend
+FileLogix

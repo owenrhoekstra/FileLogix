@@ -55,3 +55,7 @@ func InitWebAuthn() {
 
 	log.Println("WebAuthn initialized successfully")
 }
+
+func GetWebAuthn() *webauthn.WebAuthn {
+	return webAuthn
+}

@@ -49,7 +49,6 @@ func LoginChallengeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func LoginVerifyHandler(w http.ResponseWriter, r *http.Request) {
-	// 🔥 READ FROM HEADERS (same as registration)
 	email := r.Header.Get("X-Email")
 	sessionID := r.Header.Get("X-Session-Id")
 
@@ -77,16 +76,15 @@ func LoginVerifyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update stored credential flags (handles BE/BS flag drift)
 	credIDHex := hex.EncodeToString(credential.ID)
 	_, err = database.DB.Exec(`
-    UPDATE credentials
-    SET backup_eligible = $1,
-        backup_state    = $2,
-        sign_count      = $3
-    WHERE credential_id = $4
-      AND user_id       = $5
-`,
+		UPDATE credentials
+		SET backup_eligible = $1,
+		    backup_state    = $2,
+		    sign_count      = $3
+		WHERE credential_id = $4
+		  AND user_id       = $5
+	`,
 		credential.Flags.BackupEligible,
 		credential.Flags.BackupState,
 		credential.Authenticator.SignCount,
@@ -95,11 +93,16 @@ func LoginVerifyHandler(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		log.Println("credential update error:", err)
-		// non-fatal, session is still valid
 	}
 
-	// 🔥 CREATE REAL SESSION (this is what you were missing)
-	token, err := middleware.CreateSession(u.ID)
+	roleName, permissions, err := database.GetUserRole(u.ID)
+	if err != nil {
+		log.Println("role lookup error:", err)
+		http.Error(w, "failed to load user role", http.StatusInternalServerError)
+		return
+	}
+
+	token, err := middleware.CreateSession(u.ID, roleName, permissions)
 	if err != nil {
 		log.Println("session creation error:", err)
 		http.Error(w, "failed to create session", http.StatusInternalServerError)

@@ -8,22 +8,31 @@ import (
 	"log"
 )
 
-func getAllowedRole(email string) (string, bool) {
+func getAllowedRoleID(email string) (int, bool) {
 	var allowed bool
-	var role string
+	var roleName string
 	err := database.DB.QueryRow(`
 		SELECT allowed, role
 		FROM approved_users
 		WHERE email = $1
-	`, email).Scan(&allowed, &role)
+	`, email).Scan(&allowed, &roleName)
 	if err != nil || !allowed {
-		return "", false
+		return 0, false
 	}
-	return role, true
+
+	var roleID int
+	err = database.DB.QueryRow(`
+		SELECT id FROM roles WHERE name = $1
+	`, roleName).Scan(&roleID)
+	if err != nil {
+		return 0, false
+	}
+
+	return roleID, true
 }
 
 func isAllowed(email string) bool {
-	_, ok := getAllowedRole(email)
+	_, ok := getAllowedRoleID(email)
 	return ok
 }
 
@@ -40,20 +49,21 @@ func getUser(email string) (*User, error) {
 	log.Println("Looking up user by email:", email)
 
 	err := database.DB.QueryRow(`
-		SELECT id, email, role
+		SELECT id, email, role_id
 		FROM users
 		WHERE email = $1
-	`, email).Scan(&u.ID, &u.Email, &u.Role)
+	`, email).Scan(&u.ID, &u.Email, &u.RoleID)
 
 	if err == nil {
 		log.Println("User found in database, ID:", hex.EncodeToString(u.ID))
 
-		if role, ok := getAllowedRole(email); ok && role != u.Role {
-			log.Println("Role mismatch detected, updating to:", role)
-			u.Role = role
+		// Sync role_id from approved_users if it changed
+		if roleID, ok := getAllowedRoleID(email); ok && roleID != u.RoleID {
+			log.Println("Role mismatch detected, updating role_id to:", roleID)
+			u.RoleID = roleID
 			_, _ = database.DB.Exec(`
-				UPDATE users SET role = $1 WHERE email = $2
-			`, role, email)
+				UPDATE users SET role_id = $1 WHERE email = $2
+			`, roleID, email)
 		}
 
 		return u, nil
@@ -61,21 +71,21 @@ func getUser(email string) (*User, error) {
 
 	log.Println("User not found, creating new user")
 
-	role, ok := getAllowedRole(email)
+	roleID, ok := getAllowedRoleID(email)
 	if !ok {
 		return nil, sql.ErrNoRows
 	}
 
 	u.ID = generateUserID()
-	u.Role = role
+	u.RoleID = roleID
 
-	log.Println("Inserting user with ID:", hex.EncodeToString(u.ID), "email:", email, "role:", role)
+	log.Println("Inserting user with ID:", hex.EncodeToString(u.ID), "email:", email, "role_id:", roleID)
 
 	_, err = database.DB.Exec(`
-		INSERT INTO users (id, email, role)
+		INSERT INTO users (id, email, role_id)
 		VALUES ($1, $2, $3)
-		ON CONFLICT (email) DO UPDATE SET role = EXCLUDED.role
-	`, u.ID, u.Email, u.Role)
+		ON CONFLICT (email) DO UPDATE SET role_id = EXCLUDED.role_id
+	`, u.ID, u.Email, u.RoleID)
 
 	if err != nil {
 		log.Println("Error inserting user:", err)
@@ -83,16 +93,16 @@ func getUser(email string) (*User, error) {
 	}
 
 	err = database.DB.QueryRow(`
-		SELECT id, email, role
+		SELECT id, email, role_id
 		FROM users
 		WHERE email = $1
-	`, email).Scan(&u.ID, &u.Email, &u.Role)
+	`, email).Scan(&u.ID, &u.Email, &u.RoleID)
 
 	if err != nil {
 		log.Println("Error fetching user after insert:", err)
 		return nil, err
 	}
 
-	log.Println("User fetched from database, confirmed ID:", hex.EncodeToString(u.ID), "role:", u.Role)
+	log.Println("User fetched, confirmed ID:", hex.EncodeToString(u.ID), "role_id:", u.RoleID)
 	return u, nil
 }

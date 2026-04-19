@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [
     vue(),
     VitePWA({
+      disable: true,
       injectRegister: null,
       manifest: {
         name: 'FileLogix',

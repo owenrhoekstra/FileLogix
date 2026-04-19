@@ -6,9 +6,9 @@ import (
 )
 
 type User struct {
-	ID    []byte
-	Email string
-	Role  string
+	ID     []byte
+	Email  string
+	RoleID int
 }
 
 func (u User) WebAuthnID() []byte {

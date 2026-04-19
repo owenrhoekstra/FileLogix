@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"FileLogix/database"
 	"FileLogix/middleware"
 
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -25,7 +26,6 @@ func RegisterChallengeHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if !isAllowed(req.Email) {
-		// Return fake 200 to prevent email enumeration
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"options":   nil,
 			"sessionId": "",
@@ -95,7 +95,14 @@ func RegisterVerifyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := middleware.CreateSession(u.ID)
+	roleName, permissions, err := database.GetUserRole(u.ID)
+	if err != nil {
+		log.Println("role lookup error:", err)
+		http.Error(w, "failed to load user role", http.StatusInternalServerError)
+		return
+	}
+
+	token, err := middleware.CreateSession(u.ID, roleName, permissions)
 	if err != nil {
 		log.Println("session creation error:", err)
 		http.Error(w, "failed to create session", http.StatusInternalServerError)

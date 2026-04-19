@@ -1,5 +1,6 @@
 import { createApp } from 'vue'
 import './style.css'
+import './assets/theme.css'
 import App from './App.vue'
 import { registerSW } from 'virtual:pwa-register'
 import router from './router'
@@ -21,7 +22,10 @@ createApp(App)
     .use(router)
     .use(PrimeVue, {
         theme: {
-            preset: Aura
+            preset: Aura,
+            options: {
+                darkModeSelector: true
+            }
         }
     })
     .use(ToastService)
