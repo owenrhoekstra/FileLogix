@@ -32,6 +32,49 @@ async function testViewElevation() {
   const ok = await requestElevation('view')
   console.log(ok ? 'View elevation granted!' : 'View elevation failed')
 }
+
+async function ocrCall() {
+  // Create a hidden file input that opens the camera
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = 'image/*'
+  input.capture = 'environment' // rear camera; use 'user' for front
+
+  input.onchange = async () => {
+    const file = input.files?.[0]
+    if (!file) return
+
+    // Decode the captured image
+    const bitmap = await createImageBitmap(file)
+
+    // Re-encode to high-quality WebP via canvas
+    const canvas = document.createElement('canvas')
+    canvas.width = bitmap.width
+    canvas.height = bitmap.height
+    const ctx = canvas.getContext('2d')!
+    ctx.drawImage(bitmap, 0, 0)
+
+    const blob = await new Promise<Blob>((resolve, reject) =>
+        canvas.toBlob(
+            b => b ? resolve(b) : reject(new Error('toBlob failed')),
+            'image/webp',
+            0.92 // quality 0–1
+        )
+    )
+
+    // Send to backend
+    const form = new FormData()
+    form.append('image', blob, 'capture.webp')
+
+    await apiFetch('/api/protected/ocr', {
+      method: 'POST',
+      body: form,
+      // Do NOT set Content-Type — browser sets it with the boundary
+    })
+  }
+
+  input.click()
+}
 </script>
 
 <template>
@@ -41,6 +84,7 @@ async function testViewElevation() {
   <Button label="Logout" @click=logout() />
   <Button label="Test Action Elevation" @click="testActionElevation()" />
   <Button label="Test View Elevation" @click="testViewElevation()" />
+    <Button label="OCR Call" @click="ocrCall" />
   </div>
 </template>
 

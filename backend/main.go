@@ -9,8 +9,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
-
-	"github.com/didip/tollbooth/v7"
 )
 
 func main() {
@@ -97,7 +95,11 @@ func main() {
 	// 🔒 PROTECTED ROUTES
 	mux.Handle("/api/protected/",
 		middleware.RateLimit(authLimiter)(
-			http.StripPrefix("/api/protected", routes.ProtectedRoutes()),
+			middleware.RequireAuth(
+				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					http.StripPrefix("/api/protected", routes.ProtectedRoutes()).ServeHTTP(w, r)
+				}),
+			),
 		),
 	)
 
