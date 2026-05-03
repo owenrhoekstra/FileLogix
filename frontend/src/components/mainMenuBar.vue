@@ -21,12 +21,12 @@ const userMenuItems = ref([
   {
     label: 'Profile',
     icon: 'pi pi-user',
-    command: () => console.log('Profile'),
+    command: () => router.push('/profile'),
   },
   {
     label: 'Settings',
     icon: 'pi pi-cog',
-    command: () => console.log('Settings'),
+    command: () => router.push('/settings'),
   },
   {
     separator: true,

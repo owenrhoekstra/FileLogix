@@ -5,6 +5,8 @@ import Button from 'primevue/button'
 import { ref, watch } from 'vue'
 import 'primeicons/primeicons.css'
 import mainMenuBar from '../components/mainMenuBar.vue'
+import footerBar from '../components/footerBar.vue'
+import { useDocuments } from '../services/composables/useDocuments'
 
 const filterOptions = [
   { label: 'Added', value: 'added' },
@@ -13,29 +15,11 @@ const filterOptions = [
   { label: 'Deleted', value: 'deleted' },
 ]
 
-const activeFilter = ref('added')
-const documents = ref([])
-const loading = ref(false)
 const LIMIT = 20
+const activeFilter = ref('added')
+const { documents, loading, fetchDocuments } = useDocuments()
 
-async function fetchDocuments(sortBy: string) {
-  loading.value = true
-  try {
-    const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/documents/recent?sortBy=${sortBy}&limit=${LIMIT}`,
-        { credentials: 'include' }
-    )
-    if (!res.ok) throw new Error('Failed to fetch')
-    documents.value = await res.json()
-  } catch (err) {
-    console.error(err)
-    documents.value = []
-  } finally {
-    loading.value = false
-  }
-}
-
-watch(activeFilter, (val) => fetchDocuments(val), { immediate: true })
+watch(activeFilter, (val) => fetchDocuments({ sortBy: val, limit: LIMIT }), { immediate: true })
 
 const getIcon = (type: string) => {
   return type === 'PDF' ? 'pi pi-file-pdf' : 'pi pi-file-word'
@@ -125,4 +109,5 @@ const getDateLabel = () => {
     </DataView>
 
   </div>
+  <footerBar />
 </template>

@@ -1,12 +1,20 @@
 :3500 {
     root * /srv/www
 
+    handle /api/protected/print/* {
+        reverse_proxy backend:8080 {
+            transport http {
+                compression off
+            }
+        }
+    }
+
     handle /api/* {
-                      reverse_proxy backend:8080
-                  }
+        reverse_proxy backend:8080
+    }
 
     handle {
-               try_files {path} /index.html
-               file_server
-           }
-}
+        try_files {path} /index.html
+            file_server
+        }
+    }

@@ -3,9 +3,9 @@ import { ref, computed } from 'vue'
 import InputText from 'primevue/inputtext'
 import Button from 'primevue/button'
 import { z } from 'zod'
-import { passkeyLogin } from '../services/userAuthentication/passkeyLogin'
-import { passkeyCreate } from '../services/userAuthentication/passkeyCreate'
-import { apiFetch } from '../services/fetch/statusCodeChecks.ts'
+import { passkeyLogin } from '../../services/userAuthentication/passkeyLogin'
+import { passkeyCreate } from '../../services/userAuthentication/passkeyCreate'
+import { apiFetch } from '../../services/fetch/statusCodeChecks.ts'
 
 const error = ref<string | null>(null)
 const email = ref('')

@@ -4,23 +4,50 @@ import { apiFetch } from '../services/fetch/statusCodeChecks.ts'
 const routes: RouteRecordRaw[] = [
     {
         path: '/',
-        component: () => import('../views/userAuthentication.vue')
+        component: () => import('../views/auth/userAuthentication.vue')
     },
     {
         path: '/dashboard',
+        component: () => import('../views/viewRecords/mainRecordView.vue')
+    },
+    {
+        path: '/old-dashboard',
         component: () => import('../views/mainDashboard.vue')
     },
     {
         path: '/setup',
-        component: () => import('../views/userSetup.vue')
+        component: () => import('../views/auth/userSetup.vue')
     },
     {
         path: '/new-record',
-        component: () => import('../views/addNewRecord.vue')
+        component: () => import('../views/addRecord/addNewRecord.vue')
     },
     {
         path: '/support',
-        component: () => import('../views/appSupport.vue')
+        component: () => import('../views/support/appSupport.vue')
+    },
+    {
+        path: '/settings',
+        component: () => import('../views/optionsMenu/settingsView.vue')
+    },
+    {
+        path: '/profile',
+        component: () => import('../views/optionsMenu/profileView.vue')
+    },
+    {
+        //path: '/records',
+        //component: () => import('../views/viewRecords/mainRecordView.vue')
+    },
+    {
+        path: '/print/:id',
+        component: () => import('../views/addRecord/printView.vue')
+    },
+    {
+        path: '/code-scan',
+        component: () => import('../views/addRecord/filingView.vue')
+    },
+    { path: '/:pathMatch(.*)*', name: 'NotFound',
+      component: () => import('../views/notFound.vue')
     }
 ]
 

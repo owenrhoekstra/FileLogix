@@ -17,6 +17,12 @@ const { updateServiceWorker } = useRegisterSW({
 
 <template>
   <router-view />
-  <Toast />
+  <Toast
+      position="top-right"
+      :breakpoints="{
+      '960px': { width: '75vw' },
+      '640px': { width: '90vw' }
+    }"
+  />
   <ConfirmDialog />
 </template>

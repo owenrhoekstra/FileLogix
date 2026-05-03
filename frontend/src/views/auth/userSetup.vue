@@ -2,8 +2,8 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import InputText from 'primevue/inputtext'
 import Button from 'primevue/button'
-import { apiFetch } from '../services/fetch/statusCodeChecks.ts'
-import router from '../router/index.ts'
+import { apiFetch } from '../../services/fetch/statusCodeChecks.ts'
+import router from '../../router'
 
 const firstName = ref('')
 const lastName = ref('')
