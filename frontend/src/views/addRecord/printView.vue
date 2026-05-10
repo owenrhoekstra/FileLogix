@@ -2,6 +2,8 @@
 import { ref, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
+import mainMenuBar from '../../components/mainMenuBar.vue'
+import footerBar from '../../components/footerBar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -65,7 +67,6 @@ fetchLabel()
   <div class="min-h-[calc(100vh-180px)] flex justify-center items-center p-4">
     <div class="flex flex-col items-center gap-6 text-center max-w-sm w-full">
 
-      <!-- Loading -->
       <template v-if="state === 'loading'">
         <i class="pi pi-spin pi-spinner text-4xl text-muted-color" />
         <div class="flex flex-col gap-1">
@@ -75,7 +76,6 @@ fetchLabel()
         </div>
       </template>
 
-      <!-- Ready -->
       <template v-else-if="state === 'ready'">
         <i class="pi pi-print text-4xl" />
         <div class="flex flex-col gap-1">
@@ -99,7 +99,6 @@ fetchLabel()
         </div>
       </template>
 
-      <!-- Error -->
       <template v-else-if="state === 'error'">
         <i class="pi pi-times-circle text-4xl text-red-500" />
         <div class="flex flex-col gap-1">

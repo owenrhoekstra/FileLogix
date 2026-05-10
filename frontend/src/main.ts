@@ -18,7 +18,13 @@ import ConfirmDialog from 'primevue/confirmdialog'
 import SelectButton from 'primevue/selectbutton'
 
 if (import.meta.env.PROD) {
-    registerSW({ immediate: true })
+    registerSW({
+        immediate: true,
+        onNeedRefresh() {
+            // new version available — don't reload, just let it activate next visit
+        },
+        onOfflineReady() {}
+    })
 }
 
 const MyPreset = definePreset(Aura, {

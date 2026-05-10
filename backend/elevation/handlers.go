@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
 
@@ -48,16 +49,19 @@ func (s *challengeStore) delete(sessionToken string) {
 var challenges = &challengeStore{}
 
 type elevationUser struct {
-	id          []byte
+	id          uuid.UUID
 	credentials []webauthn.Credential
 }
 
-func (u *elevationUser) WebAuthnID() []byte                         { return u.id }
+func (u *elevationUser) WebAuthnID() []byte {
+	b := u.id
+	return b[:]
+}
 func (u *elevationUser) WebAuthnName() string                       { return "" }
 func (u *elevationUser) WebAuthnDisplayName() string                { return "" }
 func (u *elevationUser) WebAuthnCredentials() []webauthn.Credential { return u.credentials }
 
-func loadUserCredentials(userID []byte) (*elevationUser, error) {
+func loadUserCredentials(userID uuid.UUID) (*elevationUser, error) {
 	rows, err := database.DB.Query(`
 		SELECT credential_id, public_key, attestation_type, transports,
 		       sign_count, backup_eligible, backup_state
@@ -98,7 +102,7 @@ func loadUserCredentials(userID []byte) (*elevationUser, error) {
 }
 
 func ChallengeHandler(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value(middleware.UserIDKey).([]byte)
+	userID := r.Context().Value(middleware.UserIDKey).(uuid.UUID)
 	permissions := r.Context().Value(middleware.PermissionsKey).(map[string]bool)
 
 	var req struct {
@@ -150,7 +154,7 @@ func ChallengeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func VerifyHandler(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value(middleware.UserIDKey).([]byte)
+	userID := r.Context().Value(middleware.UserIDKey).(uuid.UUID)
 
 	elevType := ElevationType(r.Header.Get("X-Elevation-Type"))
 	if elevType != ActionElevation && elevType != ViewElevation {

@@ -9,13 +9,11 @@ export interface DocumentQuery {
 }
 
 export interface Document {
-    id: number
+    id: string
     name: string
-    type: string
+    types: string  // raw JSON array, parse as needed
     added: string
     modified: string
-    viewed: string
-    deleted: string
 }
 
 export function useDocuments() {
@@ -31,7 +29,7 @@ export function useDocuments() {
             if (query.type) params.set('type', query.type)
             if (query.name) params.set('name', query.name)
 
-            const res = await apiFetch(`/api/protected/records?${params}`)
+            const res = await apiFetch(`/api/protected/fetch-records?${params}`)
             if (!res || !res.ok) throw new Error('Failed to fetch')
             documents.value = await res.json()
         } catch (err) {

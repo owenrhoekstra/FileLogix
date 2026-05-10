@@ -16,22 +16,25 @@ onUnmounted(() => window.removeEventListener('resize', onResize));
 </script>
 
 <template>
-  <div class="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-[1126px] flex items-center px-4 py-2">
-    <!-- Left -->
-    <div class="flex-1 flex justify-start gap-2">
-      <Button :label="isMobile ? undefined : 'Back'" icon="pi pi-arrow-circle-left" @click="router.back()"/>
-      <Button :label="isMobile ? undefined : 'Reload'" icon="pi pi-refresh" @click="reloadPage"/>
-    </div>
-    <!-- Centre -->
-    <div class="flex-1 flex justify-center">
-      <Button disabled :label="isMobile ? undefined : 'View All Records'" icon="pi pi-eye" @click="router.push('/records')"/>
-    </div>
-    <!-- Right -->
-    <div class="flex-1 flex justify-end">
-      <Button :label="isMobile ? undefined : 'Forward'" icon="pi pi-arrow-circle-right" @click="router.forward()"/>
+  <div class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[1110px]">
+    <!-- Background rectangle -->
+    <div class="absolute inset-0" style="background-color: var(--app-bg);" />
+
+    <!-- Buttons -->
+    <div class="relative flex items-center px-4 py-2 pb-6">
+      <div class="flex-1 flex justify-start gap-2">
+        <Button :label="isMobile ? undefined : 'Back'" icon="pi pi-arrow-circle-left" @click="router.back()"/>
+        <Button :label="isMobile ? undefined : 'Reload'" icon="pi pi-refresh" @click="reloadPage"/>
+      </div>
+      <div class="flex-1 flex justify-center">
+        <Button :label="isMobile ? undefined : 'File Records'" icon="pi pi-qrcode" @click="router.push('/code-scan')"/>
+      </div>
+      <div class="flex-1 flex justify-end">
+        <Button :label="isMobile ? undefined : 'Forward'" icon="pi pi-arrow-circle-right" @click="router.forward()"/>
+      </div>
     </div>
   </div>
-</template>
+  </template>
 
 <style scoped>
 </style>

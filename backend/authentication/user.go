@@ -3,16 +3,18 @@ package authentication
 import (
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/google/uuid"
 )
 
 type User struct {
-	ID     []byte
+	ID     uuid.UUID
 	Email  string
 	RoleID int
 }
 
 func (u User) WebAuthnID() []byte {
-	return u.ID
+	b := u.ID
+	return b[:]
 }
 
 func (u User) WebAuthnName() string {

@@ -7,26 +7,26 @@ import (
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
 
-// SAVE credential after registration
-func saveCredential(userID []byte, cred *webauthn.Credential) error {
-	log.Println("Saving credential for user ID (bytes):", userID, "credential ID:", cred.ID)
+func saveCredential(userID uuid.UUID, cred *webauthn.Credential) error {
+	log.Println("Saving credential for user ID:", userID.String(), "credential ID:", cred.ID)
 
 	_, err := database.DB.Exec(`
-		INSERT INTO credentials (
-			user_id,
-			credential_id,
-			public_key,
-			attestation_type,
-			transports,
-			sign_count,
-			backup_eligible,
-			backup_state
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-		ON CONFLICT (credential_id) DO NOTHING
-	`,
+        INSERT INTO credentials (
+            user_id,
+            credential_id,
+            public_key,
+            attestation_type,
+            transports,
+            sign_count,
+            backup_eligible,
+            backup_state
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        ON CONFLICT (credential_id) DO NOTHING
+    `,
 		userID,
 		cred.ID,
 		cred.PublicKey,
@@ -43,15 +43,14 @@ func saveCredential(userID []byte, cred *webauthn.Credential) error {
 	return err
 }
 
-// GET credentials for login (IMPORTANT for WebAuthn)
-func getCredentialsByUserID(userID []byte) ([]webauthn.Credential, error) {
-	log.Println("Looking up credentials for user ID (bytes):", userID)
+func getCredentialsByUserID(userID uuid.UUID) ([]webauthn.Credential, error) {
+	log.Println("Looking up credentials for user ID:", userID.String())
 
 	rows, err := database.DB.Query(`
-		SELECT credential_id, public_key, attestation_type, transports, sign_count, backup_eligible, backup_state
-		FROM credentials
-		WHERE user_id = $1
-	`, userID)
+        SELECT credential_id, public_key, attestation_type, transports, sign_count, backup_eligible, backup_state
+        FROM credentials
+        WHERE user_id = $1
+    `, userID)
 	if err != nil {
 		log.Println("Error querying credentials:", err)
 		return nil, err
@@ -87,6 +86,6 @@ func getCredentialsByUserID(userID []byte) ([]webauthn.Credential, error) {
 		creds = append(creds, cred)
 	}
 
-	log.Println("Found", len(creds), "credential(s) for user ID (bytes):", userID)
+	log.Println("Found", len(creds), "credential(s) for user ID:", userID.String())
 	return creds, nil
 }

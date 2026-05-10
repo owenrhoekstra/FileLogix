@@ -1,7 +1,6 @@
 package authentication
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -76,20 +75,19 @@ func LoginVerifyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	credIDHex := hex.EncodeToString(credential.ID)
 	_, err = database.DB.Exec(`
-		UPDATE credentials
-		SET backup_eligible = $1,
-		    backup_state    = $2,
-		    sign_count      = $3
-		WHERE credential_id = $4
-		  AND user_id       = $5
-	`,
+        UPDATE credentials
+        SET backup_eligible = $1,
+            backup_state    = $2,
+            sign_count      = $3
+        WHERE credential_id = $4
+          AND user_id       = $5
+    `,
 		credential.Flags.BackupEligible,
 		credential.Flags.BackupState,
 		credential.Authenticator.SignCount,
-		credIDHex,
-		hex.EncodeToString(u.ID),
+		credential.ID,
+		u.ID,
 	)
 	if err != nil {
 		log.Println("credential update error:", err)

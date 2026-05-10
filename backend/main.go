@@ -6,11 +6,11 @@ import (
 	"FileLogix/elevation"
 	"FileLogix/middleware"
 	"FileLogix/routes"
-	"encoding/hex"
 	"encoding/json"
 	"net/http"
 
 	"github.com/didip/tollbooth/v7"
+	"github.com/google/uuid"
 )
 
 func main() {
@@ -69,7 +69,7 @@ func main() {
 	// 🔒 AUTHENTICATED ROUTES
 	mux.Handle("/api/auth/me",
 		middleware.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
-			userID := r.Context().Value(middleware.UserIDKey).([]byte)
+			userID := r.Context().Value(middleware.UserIDKey).(uuid.UUID)
 
 			var metadataComplete bool
 			var email string
@@ -83,7 +83,7 @@ func main() {
 
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]interface{}{
-				"userId":           hex.EncodeToString(userID),
+				"userId":           userID.String(),
 				"metadataComplete": metadataComplete,
 				"email":            email,
 			})
@@ -124,6 +124,7 @@ func main() {
 
 	handler := middleware.CORS(mux)
 	handler = middleware.SecurityHeaders(handler)
+	handler = middleware.WithRequestID(handler)
 
 	http.ListenAndServe(":8080", handler)
 }

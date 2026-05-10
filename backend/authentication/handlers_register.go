@@ -9,6 +9,7 @@ import (
 	"FileLogix/middleware"
 
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/google/uuid"
 )
 
 func RegisterChallengeHandler(w http.ResponseWriter, r *http.Request) {
@@ -117,7 +118,7 @@ func RegisterVerifyHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func userAlreadyHasCredential(userID []byte) bool {
+func userAlreadyHasCredential(userID uuid.UUID) bool {
 	creds, err := getCredentialsByUserID(userID)
 	if err != nil {
 		return false

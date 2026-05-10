@@ -34,10 +34,10 @@ const routes: RouteRecordRaw[] = [
         path: '/profile',
         component: () => import('../views/optionsMenu/profileView.vue')
     },
-    {
-        //path: '/records',
-        //component: () => import('../views/viewRecords/mainRecordView.vue')
-    },
+    /*{
+        path: '/records',
+        component: () => import('../views/viewRecords/mainRecordView.vue')
+    },*/
     {
         path: '/print/:id',
         component: () => import('../views/addRecord/printView.vue')

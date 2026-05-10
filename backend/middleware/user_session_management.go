@@ -11,11 +11,13 @@ import (
 	"time"
 
 	"FileLogix/database"
+
+	"github.com/google/uuid"
 )
 
 type Session struct {
 	ID          string
-	UserID      []byte
+	UserID      uuid.UUID
 	ExpiresAt   time.Time
 	LastSeen    time.Time
 	RoleName    string
@@ -38,7 +40,7 @@ func newSessionToken() string {
 	return hex.EncodeToString(b)
 }
 
-func CreateSession(userID []byte, roleName string, permissions map[string]bool) (string, error) {
+func CreateSession(userID uuid.UUID, roleName string, permissions map[string]bool) (string, error) {
 	token := newSessionToken()
 
 	s := Session{

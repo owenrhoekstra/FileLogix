@@ -14,6 +14,7 @@ func RequirePermission(permission string) func(http.HandlerFunc) http.HandlerFun
 			}
 
 			if !permissions[permission] {
+				w.Header().Set("X-Toast", "You lack the necessary permissions to complete the requested action")
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}
@@ -21,4 +22,18 @@ func RequirePermission(permission string) func(http.HandlerFunc) http.HandlerFun
 			next(w, r)
 		})
 	}
+}
+
+func GetUserPermissions(r *http.Request) (map[string]bool, error) {
+
+	cookie, err := GetSessionFromRequest(r)
+	if err != nil {
+		return nil, err
+	}
+	session, err := GetSession(cookie)
+	if err != nil {
+		return nil, err
+	}
+	return session.Permissions, nil
+
 }

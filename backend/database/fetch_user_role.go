@@ -2,18 +2,20 @@ package database
 
 import (
 	"encoding/json"
+
+	"github.com/google/uuid"
 )
 
-func GetUserRole(userID []byte) (string, map[string]bool, error) {
+func GetUserRole(userID uuid.UUID) (string, map[string]bool, error) {
 	var roleName string
 	var permissionsRaw []byte
 
 	err := DB.QueryRow(`
-		SELECT r.name, r.permissions
-		FROM users u
-		JOIN roles r ON r.id = u.role_id
-		WHERE u.id = $1
-	`, userID).Scan(&roleName, &permissionsRaw)
+        SELECT r.name, r.permissions
+        FROM users u
+        JOIN roles r ON r.id = u.role_id
+        WHERE u.id = $1
+    `, userID).Scan(&roleName, &permissionsRaw)
 	if err != nil {
 		return "", nil, err
 	}

@@ -8,6 +8,11 @@ services:
       - vue_dist:/app/dist-volume
 
   backend:
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
     build:
       context: ./backend
     environment:
@@ -22,6 +27,7 @@ services:
       - PYTHON_OCR_URL=http://ocr:8081/ocr
     volumes:
       - /var/run/postgresql:/var/run/postgresql
+      - /srv/FileLogix/files:/srv/FileLogix/files
     depends_on:
       - frontend
       - redis

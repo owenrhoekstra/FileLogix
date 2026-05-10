@@ -12,7 +12,6 @@ FROM gcr.io/distroless/static-debian12
 WORKDIR /app
 
 COPY --from=builder /app/filelogix-backend /filelogix-backend
-COPY --from=builder /app/database/migrations ./database/migrations
 
 USER nonroot:nonroot
 

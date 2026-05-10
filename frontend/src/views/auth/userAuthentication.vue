@@ -6,6 +6,9 @@ import { z } from 'zod'
 import { passkeyLogin } from '../../services/userAuthentication/passkeyLogin'
 import { passkeyCreate } from '../../services/userAuthentication/passkeyCreate'
 import { apiFetch } from '../../services/fetch/statusCodeChecks.ts'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const error = ref<string | null>(null)
 const email = ref('')
@@ -49,6 +52,7 @@ async function handleSubmit() {
       await passkeyCreate(email.value)
     }
 
+    await router.push('/')
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Something went wrong'
   }
@@ -59,18 +63,25 @@ async function handleSubmit() {
   <div class="flex flex-col gap-4 max-w-sm justify-center items-center mx-auto">
     <h1>FileLogix</h1>
     <h2>Please Sign in With Your Email and Passkey</h2>
-    <InputText
-      v-model="email"
-      type="email"
-      placeholder="Email Address"
-      class="w-full"
-    />
-    <Button
-      label="Continue with Passkey"
-      @click="handleSubmit"
-      :disabled="!isEmailValid"
-      class="w-full"
-    />
+    <form
+        class="flex flex-col gap-4 w-full"
+        @submit.prevent="handleSubmit"
+    >
+      <InputText
+          v-model="email"
+          type="email"
+          placeholder="Email Address"
+          class="w-full"
+          @keyup.enter="handleSubmit"
+      />
+
+      <Button
+          type="submit"
+          label="Continue with Passkey"
+          :disabled="!isEmailValid"
+          class="w-full"
+      />
+    </form>
     <p v-if="error" class="text-red-500 text-sm">{{ error }}</p>
   </div>
 </template>

@@ -9,6 +9,7 @@ import footerBar from '../../components/footerBar.vue'
 import { apiFetch } from '../../services/fetch/statusCodeChecks.ts'
 import { useRouter } from 'vue-router'
 import type { FormSubmitEvent } from '@primevue/forms'
+import { convertAllToWebP } from '../../services/addNewRecord/imageConvert.ts'
 
 // ---- Router ----
 const router = useRouter()
@@ -84,7 +85,8 @@ const onFormSubmit = async (event: FormSubmitEvent) => {
 
   const formData = new FormData()
   formData.append('documentName', values.documentName)
-  formData.append('documentDate', new Date(values.documentDate).toISOString())
+  const date = new Date(values.documentDate)
+  formData.append('documentDate', date.toISOString().split('T')[0])
   formData.append('documentSensitivity', String(values.documentSensitivity))
   values.documentType.forEach((type: string) => formData.append('documentType', type))
   selectedFiles.value.forEach(file => formData.append('photos', file))
@@ -107,11 +109,16 @@ const onFormSubmit = async (event: FormSubmitEvent) => {
   }
 }
 
-const onFilesSelected = (e: Event) => {
+const onFilesSelected = async (e: Event) => {
   const input = e.target as HTMLInputElement
-  if (input.files) {
-    selectedFiles.value.push(...Array.from(input.files))
+  if (!input.files) return
+
+  try {
+    const converted = await convertAllToWebP(input.files)
+    selectedFiles.value.push(...converted)
     photoError.value = null
+  } catch (err) {
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to process images', life: 3000 })
   }
 }
 

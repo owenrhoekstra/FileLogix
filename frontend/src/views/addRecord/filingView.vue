@@ -3,8 +3,7 @@ import { ref, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import Button from 'primevue/button'
-import { BrowserMultiFormatReader } from '@zxing/browser'
-import { NotFoundException } from '@zxing/library'
+import { BrowserMultiFormatReader, BrowserDatamatrixCodeReader } from '@zxing/browser'
 import { apiFetch } from '../../services/fetch/statusCodeChecks.ts'
 import mainMenuBar from '../../components/mainMenuBar.vue'
 import footerBar from '../../components/footerBar.vue'
@@ -21,9 +20,9 @@ const errorMessage = ref('')
 
 const documentId = ref<string | null>(null)
 const cabinetId = ref<string | null>(null)
-const cabinetMeta = ref<{ name: string; location: string } | null>(null)
+const cabinetMeta = ref<{ name: string; description: string } | null>(null)
 
-let reader: BrowserMultiFormatReader | null = null
+let reader: BrowserMultiFormatReader | BrowserDatamatrixCodeReader | null = null
 let streamRef: MediaStream | null = null
 
 async function startScanner() {
@@ -33,7 +32,11 @@ async function startScanner() {
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' } }
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      }
     })
     streamRef = stream
     if (videoRef.value) {
@@ -41,17 +44,14 @@ async function startScanner() {
       videoRef.value.srcObject = stream
     }
 
-    reader = new BrowserMultiFormatReader()
-    await reader.decodeFromStream(stream, videoRef.value!, (result, err, controls) => {
+    reader = step.value === 'document'
+        ? new BrowserDatamatrixCodeReader()
+        : new BrowserMultiFormatReader()
+    await reader.decodeFromStream(stream, videoRef.value!, (result, _err, controls) => {
       if (result) {
         controls.stop()
         scanning.value = false
         handleScan(result.getText())
-      }
-      if (err && !(err instanceof NotFoundException)) {
-        controls.stop()
-        scanning.value = false
-        errorMessage.value = 'Scanner error. Try again.'
       }
     })
   } catch (err) {
@@ -204,7 +204,7 @@ startScanner()
             <div class="flex flex-col min-w-0">
               <span class="text-xs text-muted-color">Cabinet</span>
               <span class="text-sm font-medium">{{ cabinetMeta.name }}</span>
-              <span class="text-xs text-muted-color">{{ cabinetMeta.location }}</span>
+              <span class="text-xs text-muted-color">{{ cabinetMeta.description }}</span>
             </div>
             <i class="pi pi-check-circle text-green-500 ml-auto shrink-0" />
           </div>

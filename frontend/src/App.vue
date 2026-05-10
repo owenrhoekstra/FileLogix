@@ -2,21 +2,25 @@
 import { useRegisterSW } from 'virtual:pwa-register/vue'
 import { RouterView } from 'vue-router'
 import Toast from 'primevue/toast'
+import { useToast } from 'primevue/usetoast'
+import { initToast } from './services/utils/toast.ts'
 
-const { updateServiceWorker } = useRegisterSW({
-  onNeedRefresh() {
-    updateServiceWorker()
-  },
+const toast = useToast()
+initToast(toast)
+
+useRegisterSW({
   onRegisteredSW(_swUrl, r) {
-    r && setInterval(async () => {
-      await r.update()
-    }, 300000) // 5 minutes
+    if (!r) return
+    r.update()
+    setInterval(() => r.update(), 300000)
   }
 })
 </script>
 
 <template>
-  <router-view />
+  <div class="pb-24">
+    <router-view />
+  </div>
   <Toast
       position="top-right"
       :breakpoints="{

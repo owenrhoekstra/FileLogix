@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import DataView from 'primevue/dataview'
+import { ref, watch, computed } from 'vue'
 import SelectButton from 'primevue/selectbutton'
 import Button from 'primevue/button'
 import Drawer from 'primevue/drawer'
@@ -10,42 +9,23 @@ import 'primeicons/primeicons.css'
 import mainMenuBar from '../../components/mainMenuBar.vue'
 import footerBar from '../../components/footerBar.vue'
 import { apiFetch } from '../../services/fetch/statusCodeChecks.ts'
-
-// ── Types ────────────────────────────────────────────────────────────────────
-
-interface Document {
-  id: string
-  name: string
-  type: string
-  added: string
-  modified: string
-  viewed: string
-  deleted: string | null
-}
-
-interface Filters {
-  docDateFrom: Date | null
-  docDateTo: Date | null
-  filedDateFrom: Date | null
-  filedDateTo: Date | null
-  types: string[]
-}
-
-interface DocumentType {
-  documentLabel: string
-  documentLabelValue: string
-}
+import documentList from '../../components/documentList.vue'
+import documentDetails from '../../components/documentDetails.vue'
+import type { Document, DocumentType, Filters } from '../../types/documents.ts'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const LIMIT = 20
+const LIMIT = 5
 
 const sortOptions = [
   { label: 'Added',    value: 'added'    },
   { label: 'Modified', value: 'modified' },
-  { label: 'Viewed',   value: 'viewed'   },
   { label: 'Deleted',  value: 'deleted'  },
 ]
+
+const typeMap = computed(() =>
+    Object.fromEntries(availableTypes.value.map(t => [t.documentLabelValue, t.documentLabel]))
+)
 
 // ── State ────────────────────────────────────────────────────────────────────
 
@@ -57,55 +37,32 @@ const offset      = ref(0)
 
 const activeSort = ref('added')
 
-const drawerOpen = ref(false)
+// Filter drawer
+const drawerOpen        = ref(false)
+const activeFilterCount = ref(0)
+const availableTypes    = ref<DocumentType[]>([])
 
-// Working copies inside the drawer (only committed on Apply)
 const draftFilters = ref<Filters>({
-  docDateFrom:  null,
-  docDateTo:    null,
+  docDateFrom:   null,
+  docDateTo:     null,
   filedDateFrom: null,
   filedDateTo:   null,
-  types:        [],
+  types:         [],
 })
 
-// Applied filters (what the last fetch used)
 const appliedFilters = ref<Filters>({ ...draftFilters.value })
 
-// Active filter count badge
-const activeFilterCount = ref(0)
-
-// Available document types from backend
-const availableTypes = ref<DocumentType[]>([])
+// Detail drawer
+const drawerVisible = ref(false)
+const selectedId    = ref<string | null>(null)
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const getIcon = (type: string) => {
-  return type === 'PDF' ? 'pi pi-file-pdf' : 'pi pi-file-word'
-}
-
-const getDate = (doc: Document) => {
-  switch (activeSort.value) {
-    case 'added':    return doc.added
-    case 'modified': return doc.modified
-    case 'viewed':   return doc.viewed
-    case 'deleted':  return doc.deleted ?? '—'
-  }
-}
-
-const getDateLabel = () => {
-  switch (activeSort.value) {
-    case 'added':    return 'Added'
-    case 'modified': return 'Modified'
-    case 'viewed':   return 'Viewed'
-    case 'deleted':  return 'Deleted'
-  }
-}
-
 const countActiveFilters = (f: Filters) => {
   let count = 0
-  if (f.docDateFrom || f.docDateTo)   count++
+  if (f.docDateFrom || f.docDateTo)     count++
   if (f.filedDateFrom || f.filedDateTo) count++
-  if (f.types.length)                 count++
+  if (f.types.length)                   count++
   return count
 }
 
@@ -120,7 +77,16 @@ const buildQuery = (currentOffset: number, filters: Filters) => {
   if (filters.filedDateFrom) params.set('filedDateFrom', filters.filedDateFrom.toISOString())
   if (filters.filedDateTo)   params.set('filedDateTo',   filters.filedDateTo.toISOString())
   if (filters.types.length)  params.set('types',         filters.types.join(','))
-  return `/api/protected/documents?${params.toString()}`
+  return `/api/protected/fetch-records?${params.toString()}`
+}
+
+const onEdited = (id: string, fields: Pick<Document, 'name' | 'sensitive' | 'types' | 'dateOfDoc'>) => {
+  const doc = documents.value.find(d => d.id === id)
+  if (!doc) return
+  doc.name      = fields.name
+  doc.sensitive = fields.sensitive
+  doc.types     = fields.types
+  doc.dateOfDoc = fields.dateOfDoc
 }
 
 // ── Fetch ────────────────────────────────────────────────────────────────────
@@ -151,10 +117,6 @@ const fetchDocuments = async (reset = false) => {
   }
 }
 
-const loadMore = () => fetchDocuments(false)
-
-// ── Document types ────────────────────────────────────────────────────────────
-
 const fetchTypes = async () => {
   const res = await apiFetch('/api/protected/form-metadata')
   if (!res) return
@@ -164,16 +126,15 @@ const fetchTypes = async () => {
 
 // ── Filter drawer ─────────────────────────────────────────────────────────────
 
-const openDrawer = () => {
-  // Populate draft from currently applied filters so user sees their last state
+const openFilterDrawer = () => {
   draftFilters.value = { ...appliedFilters.value }
   drawerOpen.value   = true
 }
 
 const applyFilters = () => {
-  appliedFilters.value  = { ...draftFilters.value }
+  appliedFilters.value    = { ...draftFilters.value }
   activeFilterCount.value = countActiveFilters(appliedFilters.value)
-  drawerOpen.value      = false
+  drawerOpen.value        = false
   fetchDocuments(true)
 }
 
@@ -185,11 +146,26 @@ const clearFilters = () => {
     filedDateTo:   null,
     types:         [],
   }
-  draftFilters.value    = empty
-  appliedFilters.value  = empty
+  draftFilters.value      = empty
+  appliedFilters.value    = empty
   activeFilterCount.value = 0
-  drawerOpen.value      = false
+  drawerOpen.value        = false
   fetchDocuments(true)
+}
+
+// ── Detail drawer ─────────────────────────────────────────────────────────────
+
+const openDetail = (id: string) => {
+  selectedId.value    = id
+  drawerVisible.value = true
+}
+
+const onDeleted = (id: string) => {
+  documents.value = documents.value.filter(d => d.id !== id)
+}
+
+const onRestored = (id: string) => {
+  documents.value = documents.value.filter(d => d.id !== id)
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
@@ -197,7 +173,6 @@ const clearFilters = () => {
 fetchTypes()
 fetchDocuments(true)
 
-// Re-fetch on sort change
 watch(activeSort, () => fetchDocuments(true))
 </script>
 
@@ -224,7 +199,7 @@ watch(activeSort, () => fetchDocuments(true))
             icon="pi pi-filter"
             label="Filter"
             outlined
-            @click="openDrawer"
+            @click="openFilterDrawer"
         />
         <span
             v-if="activeFilterCount > 0"
@@ -236,67 +211,15 @@ watch(activeSort, () => fetchDocuments(true))
     </div>
 
     <!-- Document List -->
-    <DataView :value="documents" :loading="loading">
-      <template #list="{ items }">
-        <div class="flex flex-col gap-2">
-          <div
-              v-for="doc in items"
-              :key="doc.id"
-              class="flex items-center justify-between px-3 py-3 rounded-lg border border-surface-border"
-          >
-            <!-- Icon + Name -->
-            <div class="flex items-center gap-3 min-w-0">
-              <i :class="getIcon(doc.type)" class="text-2xl shrink-0" />
-              <div class="flex flex-col min-w-0">
-                <span class="font-medium truncate">{{ doc.name }}</span>
-                <span class="text-sm text-surface-400">{{ doc.type }}</span>
-              </div>
-            </div>
-
-            <!-- Date + Actions -->
-            <div class="flex items-center gap-2 shrink-0">
-              <div class="hidden sm:flex flex-col items-end">
-                <span class="text-sm text-surface-400">{{ getDateLabel() }}</span>
-                <span class="text-sm">{{ getDate(doc) }}</span>
-              </div>
-              <Button
-                  v-if="activeSort !== 'deleted'"
-                  icon="pi pi-ellipsis-v"
-                  text
-                  rounded
-              />
-              <Button
-                  v-else
-                  icon="pi pi-replay"
-                  text
-                  rounded
-                  v-tooltip="'Restore'"
-              />
-            </div>
-          </div>
-        </div>
-      </template>
-
-      <template #empty>
-        <div class="flex justify-center py-8 text-surface-400">
-          No documents found.
-        </div>
-      </template>
-    </DataView>
-
-    <!-- Load More -->
-    <div v-if="hasMore && documents.length > 0" class="flex justify-center pt-2 pb-4">
-      <Button
-          label="Load More"
-          outlined
-          :loading="loadingMore"
-          @click="loadMore"
-      />
-    </div>
-
-    <div v-if="!hasMore && documents.length > 0" class="flex justify-center py-4 text-surface-400 text-sm">
-      All documents loaded.
-    </div>
+    <documentList
+        :documents="documents"
+        :loading="loading"
+        :loading-more="loadingMore"
+        :has-more="hasMore"
+        :type-map="typeMap"
+        @load-more="fetchDocuments(false)"
+        @select="openDetail"
+    />
 
   </div>
 
@@ -357,7 +280,6 @@ watch(activeSort, () => fetchDocuments(true))
 
     </div>
 
-    <!-- Footer Actions -->
     <template #footer>
       <div class="flex gap-2 w-full">
         <Button
@@ -375,6 +297,15 @@ watch(activeSort, () => fetchDocuments(true))
       </div>
     </template>
   </Drawer>
+
+  <!-- Detail Drawer -->
+  <documentDetails
+      v-model:visible="drawerVisible"
+      :document-id="selectedId"
+      @deleted="onDeleted"
+      @restored="onRestored"
+      @edited="onEdited"
+  />
 
   <footerBar />
 </template>

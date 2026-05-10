@@ -3,11 +3,13 @@ module FileLogix
 go 1.26.1
 
 require (
+	github.com/boombuler/barcode v1.1.0
 	github.com/didip/tollbooth/v7 v7.0.2
 	github.com/go-webauthn/webauthn v0.16.3
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
+	github.com/jung-kurt/gofpdf v1.16.2
 	github.com/lib/pq v1.12.3
 	github.com/redis/go-redis/v9 v9.18.0
 )

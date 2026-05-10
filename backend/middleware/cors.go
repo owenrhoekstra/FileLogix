@@ -12,9 +12,9 @@ func CORS(next http.Handler) http.Handler {
 		}
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Email, X-Session-Id, X-Require-Elevation")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Email, X-Session-Id, X-Require-Elevation, X-Toast")
 		w.Header().Set("Access-Control-Max-Age", "3600")
-		w.Header().Set("Access-Control-Expose-Headers", "X-Require-Elevation")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Toast, X-Require-Elevation")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
