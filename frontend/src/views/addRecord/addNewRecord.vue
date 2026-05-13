@@ -10,6 +10,10 @@ import { apiFetch } from '../../services/fetch/statusCodeChecks.ts'
 import { useRouter } from 'vue-router'
 import type { FormSubmitEvent } from '@primevue/forms'
 import { convertAllToWebP } from '../../services/addNewRecord/imageConvert.ts'
+import { Cropper } from 'vue-advanced-cropper'
+import type { CropperResult } from 'vue-advanced-cropper'
+import 'vue-advanced-cropper/dist/style.css'
+import Dialog from 'primevue/dialog'
 
 // ---- Router ----
 const router = useRouter()
@@ -31,9 +35,15 @@ type FormValues = {
 const toast = useToast()
 const types = ref<DocumentType[]>([])
 const selectedFiles = ref<File[]>([])
+const previewUrls = ref<string[]>([])
 const fileInput = ref<HTMLInputElement | null>(null)
 const photoError = ref<string | null>(null)
 const submitting = ref(false)
+const cropQueue = ref<File[]>([])
+const cropModalVisible = ref(false)
+const currentCropFile = ref<File | null>(null)
+const currentCropUrl = ref<string | null>(null)
+const cropperRef = ref<{ getResult(): CropperResult } | null>(null)
 
 const initialValues = reactive<FormValues>({
   documentName: '',
@@ -112,19 +122,52 @@ const onFormSubmit = async (event: FormSubmitEvent) => {
 const onFilesSelected = async (e: Event) => {
   const input = e.target as HTMLInputElement
   if (!input.files) return
-
+  console.log('files selected:', input.files.length)
   try {
     const converted = await convertAllToWebP(input.files)
-    selectedFiles.value.push(...converted)
-    photoError.value = null
+    console.log('converted:', converted.length)
+    cropQueue.value.push(...converted)
+    console.log('queue after push:', cropQueue.value.length)
+    processNextCrop()
   } catch (err) {
+    console.error('onFilesSelected error:', err)
     toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to process images', life: 3000 })
+  } finally {
+    if (fileInput.value) fileInput.value.value = ''
   }
 }
 
+const processNextCrop = () => {
+  console.log('processNextCrop called, queue length:', cropQueue.value.length)
+  if (cropQueue.value.length === 0) return
+  currentCropFile.value = cropQueue.value[0]
+  currentCropUrl.value = URL.createObjectURL(currentCropFile.value)
+  cropModalVisible.value = true
+  console.log('cropModalVisible set to true')
+}
+
+const onCropSave = () => {
+  const result = cropperRef.value?.getResult()
+  if (!result?.canvas) return
+  result.canvas.toBlob((blob: Blob | null) => {
+    if (!blob) return
+    const file = new File([blob], currentCropFile.value!.name, { type: 'image/webp' })
+    selectedFiles.value.push(file)
+    previewUrls.value.push(URL.createObjectURL(file))
+    cropQueue.value.shift()
+    URL.revokeObjectURL(currentCropUrl.value!)
+    cropModalVisible.value = false
+    processNextCrop()
+  }, 'image/webp', 0.9)
+}
+
 const triggerFile = () => fileInput.value?.click()
-const getPreviewUrl = (file: File) => URL.createObjectURL(file)
-const removeFile = (index: number) => selectedFiles.value.splice(index, 1)
+
+const removeFile = (index: number) => {
+  URL.revokeObjectURL(previewUrls.value[index])
+  selectedFiles.value.splice(index, 1)
+  previewUrls.value.splice(index, 1)
+}
 </script>
 
 <template>
@@ -196,7 +239,7 @@ const removeFile = (index: number) => selectedFiles.value.splice(index, 1)
       </div>
 
       <div v-for="(f, index) in selectedFiles" :key="index" class="flex items-center gap-3">
-        <img :src="getPreviewUrl(f)" class="w-16 h-16 object-cover rounded" />
+        <img :src="previewUrls[index]" class="w-16 h-16 object-cover rounded" />
         <span class="text-sm">{{ f.name }}</span>
         <Button type="button" icon="pi pi-times" severity="danger" text @click="removeFile(index)" />
       </div>
@@ -209,6 +252,17 @@ const removeFile = (index: number) => selectedFiles.value.splice(index, 1)
           :disabled="submitting"
       />
     </Form>
+    <Dialog v-model:visible="cropModalVisible" modal header="Crop Photo" :closable="false" style="width: 90vw; max-width: 600px">
+      <Cropper
+          ref="cropperRef"
+          :src="currentCropUrl"
+          :stencil-props="{ aspectRatio: null }"
+          style="max-height: 70vh"
+      />
+      <template #footer>
+        <Button label="Save" @click="onCropSave" />
+      </template>
+    </Dialog>
   </div>
 
   <footerBar />

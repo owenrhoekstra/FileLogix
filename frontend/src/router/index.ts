@@ -47,7 +47,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import('../views/addRecord/filingView.vue')
     },
     { path: '/:pathMatch(.*)*', name: 'NotFound',
-      component: () => import('../views/notFound.vue')
+        component: () => import('../views/notFound.vue')
     }
 ]
 
@@ -56,9 +56,22 @@ const router = createRouter({
     routes
 })
 
+let cameFromAuth = false
+
 router.beforeEach(async (to, _from, next) => {
+    // SW update: full reload when navigating to dashboard from auth or setup.
+    // cameFromAuth is a memory flag — wiped on real page reload, so no infinite loop.
+    if (to.path === '/dashboard' && cameFromAuth) {
+        cameFromAuth = false
+        window.location.href = to.fullPath
+        return
+    }
+
     // Public route — always allow
     if (to.path === '/') {
+        // Set flag so that if auth redirects to dashboard, we trigger a SW reload
+        cameFromAuth = true
+
         // Redirect to dashboard or setup if already authenticated
         if (!to.query.logout) {
             try {
@@ -72,6 +85,11 @@ router.beforeEach(async (to, _from, next) => {
         }
         next()
         return
+    }
+
+    // Setup route also counts as pre-dashboard auth flow
+    if (to.path === '/setup') {
+        cameFromAuth = true
     }
 
     // All other routes require a valid session

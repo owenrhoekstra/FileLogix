@@ -97,5 +97,13 @@ func ProtectedRoutes() http.Handler {
 		),
 	)
 
+	mux.Handle("/settings/",
+		middleware.RequireRole("superuser", "manager")(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.StripPrefix("/settings", SettingsRoutes()).ServeHTTP(w, r)
+			}),
+		),
+	)
+
 	return mux
 }

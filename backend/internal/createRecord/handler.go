@@ -7,7 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"FileLogix/database"
 	"FileLogix/middleware"
+	"FileLogix/utilities/logger"
 
 	"github.com/google/uuid"
 )
@@ -148,20 +150,22 @@ func PrintLabel(w http.ResponseWriter, r *http.Request) {
 }
 
 func TypeOptions(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+	ctx := r.Context()
+	requestID := ctx.Value(middleware.RequestIDKey).(uuid.UUID)
+	userID := ctx.Value(middleware.UserIDKey).(uuid.UUID)
 
-	options := map[string]interface{}{
-		"documentTypes": []map[string]string{
-			{
-				"documentLabel":      "Invoice",
-				"documentLabelValue": "invoice",
-			},
-			{
-				"documentLabel":      "VP Packing List",
-				"documentLabelValue": "vppackinglist",
-			},
-		},
+	var value json.RawMessage
+	err := database.DB.QueryRowContext(ctx, `
+		SELECT value FROM settings WHERE key = 'document_types'
+	`).Scan(&value)
+	if err != nil {
+		logger.Errorf(requestID, userID, "TypeOptions: scan error: %v", err)
+		http.Error(w, "failed to load document types", http.StatusInternalServerError)
+		return
 	}
 
-	json.NewEncoder(w).Encode(options)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"documentTypes":`))
+	w.Write(value)
+	w.Write([]byte(`}`))
 }

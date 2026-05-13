@@ -17,11 +17,13 @@ import ConfirmationService from 'primevue/confirmationservice'
 import ConfirmDialog from 'primevue/confirmdialog'
 import SelectButton from 'primevue/selectbutton'
 
+// main.ts or a dedicated sw-register.ts
 if (import.meta.env.PROD) {
     registerSW({
         immediate: true,
-        onNeedRefresh() {
-            // new version available — don't reload, just let it activate next visit
+        onRegisteredSW(_swUrl, registration) {
+            if (!registration) return
+            setInterval(() => registration.update(), 5 * 60 * 1000)
         },
         onOfflineReady() {}
     })
