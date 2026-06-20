@@ -2,18 +2,30 @@ package main
 
 import (
 	"FileLogix/authentication"
+	"FileLogix/daemons"
 	"FileLogix/database"
 	"FileLogix/elevation"
 	"FileLogix/middleware"
 	"FileLogix/routes"
+	"FileLogix/utilities/recovery"
+
+	"context"
 	"encoding/json"
+	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/didip/tollbooth/v7"
 	"github.com/google/uuid"
 )
 
 func main() {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
 	authentication.InitWebAuthn()
 	database.Init()
 	database.InitRedis()
@@ -122,9 +134,19 @@ func main() {
 		),
 	)
 
+	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
+	})
+
 	handler := middleware.CORS(mux)
 	handler = middleware.SecurityHeaders(handler)
 	handler = middleware.WithRequestID(handler)
+	handler = http.TimeoutHandler(handler, 30*time.Second, `{"error":"request timeout"}`)
+	handler = recovery.PanicPrevent(handler)
 
-	http.ListenAndServe(":8080", handler)
+	daemons.StartAll(ctx)
+
+	if err := http.ListenAndServe(":8080", handler); err != nil {
+		log.Fatal(err)
+	}
 }

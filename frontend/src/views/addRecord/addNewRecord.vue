@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, onMounted, watch } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import MultiSelect from 'primevue/multiselect'
 import DatePicker from 'primevue/datepicker'
@@ -14,9 +14,11 @@ import { Cropper } from 'vue-advanced-cropper'
 import type { CropperResult } from 'vue-advanced-cropper'
 import 'vue-advanced-cropper/dist/style.css'
 import Dialog from 'primevue/dialog'
+import { useConfirm } from 'primevue/useconfirm'
 
 // ---- Router ----
 const router = useRouter()
+const confirm = useConfirm()
 
 // ---- Types ----
 type DocumentType = {
@@ -38,6 +40,7 @@ const selectedFiles = ref<File[]>([])
 const previewUrls = ref<string[]>([])
 const fileInput = ref<HTMLInputElement | null>(null)
 const photoError = ref<string | null>(null)
+const submitAttempted = ref(false)
 const submitting = ref(false)
 const cropQueue = ref<File[]>([])
 const cropModalVisible = ref(false)
@@ -77,60 +80,90 @@ const resolver = (e: any) => {
   if (values.documentSensitivity === null)
     errors.documentSensitivity = [{ message: 'Select document sensitivity.' }]
 
-  photoError.value = selectedFiles.value.length === 0 ? 'At least one photo required' : null
-
   return { values, errors }
 }
 
+// ---- Watch ----
+watch(selectedFiles, (files) => {
+  if (submitAttempted.value) {
+    photoError.value = files.length === 0 ? 'At least one photo required' : null
+  }
+}, { deep: true })
+
 // ---- Handlers ----
 const onFormSubmit = async (event: FormSubmitEvent) => {
+  submitAttempted.value = true
+  photoError.value = selectedFiles.value.length === 0 ? 'At least one photo required' : null
+
   const { valid, values } = event
-  if (!valid) return
-  if (selectedFiles.value.length === 0) {
-    photoError.value = 'At least one photo required'
-    return
-  }
 
-  submitting.value = true
+  if (!valid || selectedFiles.value.length === 0) return
 
-  const formData = new FormData()
-  formData.append('documentName', values.documentName)
-  const date = new Date(values.documentDate)
-  formData.append('documentDate', date.toISOString().split('T')[0])
-  formData.append('documentSensitivity', String(values.documentSensitivity))
-  values.documentType.forEach((type: string) => formData.append('documentType', type))
-  selectedFiles.value.forEach(file => formData.append('photos', file))
+  confirm.require({
+    message: 'Create this document?',
+    header: 'Confirm Submission',
+    icon: 'pi pi-check',
+    rejectProps: { label: 'Cancel', severity: 'secondary', outlined: true },
+    acceptProps: { label: 'Submit', severity: 'success' },
 
-  try {
-    const res = await apiFetch('/api/protected/records', {
-      method: 'POST',
-      body: formData
-    })
+    accept: async () => {
+      submitting.value = true
 
-    if (!res || !res.ok) throw new Error('request failed')
+      try {
+        const formData = new FormData()
+        formData.append('documentName', values.documentName)
 
-    toast.add({ severity: 'success', summary: 'Success', detail: 'Record created', life: 2000 })
-    const data = await res.json()
-    router.push(`/print/${data.id}`)
-  } catch (err) {
-    toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to create record', life: 3000 })
-  } finally {
-    submitting.value = false
-  }
+        const date = new Date(values.documentDate as Date)
+        formData.append('documentDate', date.toISOString().split('T')[0])
+
+        formData.append('documentSensitivity', String(values.documentSensitivity))
+
+        values.documentType.forEach((type: string) =>
+            formData.append('documentType', type)
+        )
+
+        selectedFiles.value.forEach(file =>
+            formData.append('photos', file)
+        )
+
+        const res = await apiFetch('/api/protected/records', {
+          method: 'POST',
+          body: formData
+        })
+
+        if (!res?.ok) throw new Error('request failed')
+
+        toast.add({
+          severity: 'success',
+          summary: 'Success',
+          detail: 'Record created',
+          life: 2000
+        })
+
+        const data = await res.json()
+        router.push(`/print/${data.id}`)
+      } catch (err) {
+        toast.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to create record',
+          life: 3000
+        })
+      } finally {
+        submitting.value = false
+      }
+    }
+  })
 }
 
 const onFilesSelected = async (e: Event) => {
   const input = e.target as HTMLInputElement
   if (!input.files) return
-  console.log('files selected:', input.files.length)
   try {
     const converted = await convertAllToWebP(input.files)
-    console.log('converted:', converted.length)
     cropQueue.value.push(...converted)
-    console.log('queue after push:', cropQueue.value.length)
     processNextCrop()
   } catch (err) {
-    console.error('onFilesSelected error:', err)
     toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to process images', life: 3000 })
   } finally {
     if (fileInput.value) fileInput.value.value = ''
@@ -138,12 +171,10 @@ const onFilesSelected = async (e: Event) => {
 }
 
 const processNextCrop = () => {
-  console.log('processNextCrop called, queue length:', cropQueue.value.length)
   if (cropQueue.value.length === 0) return
   currentCropFile.value = cropQueue.value[0]
   currentCropUrl.value = URL.createObjectURL(currentCropFile.value)
   cropModalVisible.value = true
-  console.log('cropModalVisible set to true')
 }
 
 const onCropSave = () => {
@@ -154,6 +185,7 @@ const onCropSave = () => {
     const file = new File([blob], currentCropFile.value!.name, { type: 'image/webp' })
     selectedFiles.value.push(file)
     previewUrls.value.push(URL.createObjectURL(file))
+    photoError.value = null
     cropQueue.value.shift()
     URL.revokeObjectURL(currentCropUrl.value!)
     cropModalVisible.value = false
@@ -196,6 +228,7 @@ const removeFile = (index: number) => {
             filter
             placeholder="Select Document Type"
             :maxSelectedLabels="3"
+            :selectionLimit="3"
         />
         <Message v-if="$form.documentType?.invalid" severity="error" size="small" variant="simple">
           {{ $form.documentType.error?.message }}

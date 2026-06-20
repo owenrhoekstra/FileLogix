@@ -2,10 +2,14 @@ package database
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+
+	"FileLogix/utilities/logger"
 )
 
 var RDB *redis.Client
@@ -22,15 +26,18 @@ func InitRedis() {
 		port = "6379"
 	}
 
+	addr := fmt.Sprintf("%s:%s", host, port)
+
 	RDB = redis.NewClient(&redis.Options{
-		Addr:     host + ":" + port,
+		Addr:     addr,
 		Password: password,
 		DB:       0,
 	})
 
 	if err := RDB.Ping(context.Background()).Err(); err != nil {
-		log.Fatal("Redis connection failed:", err)
+		logger.Errorf(uuid.Nil, uuid.Nil, "failed to connect to Redis at %s: %v", addr, err)
+		log.Fatal(err)
 	}
 
-	log.Println("Redis connected at", host+":"+port)
+	logger.Infof(uuid.Nil, uuid.Nil, "connected to Redis at %s", addr)
 }

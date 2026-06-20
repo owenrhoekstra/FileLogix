@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 func UserRoutes() http.Handler {
@@ -17,7 +19,7 @@ func UserRoutes() http.Handler {
 }
 
 func setupHandler(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value(middleware.UserIDKey).([]byte)
+	userID := r.Context().Value(middleware.UserIDKey).(uuid.UUID)
 
 	switch r.Method {
 	case http.MethodPost:

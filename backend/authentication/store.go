@@ -2,8 +2,8 @@ package authentication
 
 import (
 	"FileLogix/database"
+	"FileLogix/utilities/logger"
 	"database/sql"
-	"log"
 
 	"github.com/google/uuid"
 )
@@ -37,15 +37,11 @@ func isAllowed(email string) bool {
 }
 
 func generateUserID() uuid.UUID {
-	id := uuid.New()
-	log.Println("Generated new UUID for user:", id.String())
-	return id
+	return uuid.New()
 }
 
 func getUser(email string) (*User, error) {
 	u := &User{Email: email}
-
-	log.Println("Looking up user by email:", email)
 
 	err := database.DB.QueryRow(`
         SELECT id, email, role_id
@@ -54,20 +50,14 @@ func getUser(email string) (*User, error) {
     `, email).Scan(&u.ID, &u.Email, &u.RoleID)
 
 	if err == nil {
-		log.Println("User found in database, ID:", u.ID.String())
-
 		if roleID, ok := getAllowedRoleID(email); ok && roleID != u.RoleID {
-			log.Println("Role mismatch detected, updating role_id to:", roleID)
 			u.RoleID = roleID
 			_, _ = database.DB.Exec(`
                 UPDATE users SET role_id = $1 WHERE email = $2
             `, roleID, email)
 		}
-
 		return u, nil
 	}
-
-	log.Println("User not found, creating new user")
 
 	roleID, ok := getAllowedRoleID(email)
 	if !ok {
@@ -77,16 +67,13 @@ func getUser(email string) (*User, error) {
 	u.ID = generateUserID()
 	u.RoleID = roleID
 
-	log.Println("Inserting user with ID:", u.ID.String(), "email:", email, "role_id:", roleID)
-
 	_, err = database.DB.Exec(`
         INSERT INTO users (id, email, role_id)
         VALUES ($1, $2, $3)
         ON CONFLICT (email) DO UPDATE SET role_id = EXCLUDED.role_id
     `, u.ID, u.Email, u.RoleID)
-
 	if err != nil {
-		log.Println("Error inserting user:", err)
+		logger.Errorf(uuid.Nil, uuid.Nil, "getUser: insert failed for %s: %v", email, err)
 		return nil, err
 	}
 
@@ -95,12 +82,10 @@ func getUser(email string) (*User, error) {
         FROM users
         WHERE email = $1
     `, email).Scan(&u.ID, &u.Email, &u.RoleID)
-
 	if err != nil {
-		log.Println("Error fetching user after insert:", err)
+		logger.Errorf(uuid.Nil, uuid.Nil, "getUser: post-insert fetch failed for %s: %v", email, err)
 		return nil, err
 	}
 
-	log.Println("User fetched, confirmed ID:", u.ID.String(), "role_id:", u.RoleID)
 	return u, nil
 }

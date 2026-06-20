@@ -3,6 +3,10 @@ package middleware
 import (
 	"context"
 	"net/http"
+
+	"FileLogix/utilities/logger"
+
+	"github.com/google/uuid"
 )
 
 type ContextKey string
@@ -15,8 +19,11 @@ const (
 
 func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		requestID := r.Context().Value(RequestIDKey).(uuid.UUID)
+
 		token, err := GetSessionFromRequest(r)
 		if err != nil {
+			logger.Infof(requestID, uuid.Nil, "RequireAuth: missing or invalid session cookie: %v", err)
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -25,15 +32,16 @@ func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 		if err != nil {
 			switch err {
 			case ErrSessionExpired:
+				logger.Infof(requestID, uuid.Nil, "RequireAuth: session expired")
 				http.Error(w, "session expired", http.StatusUnauthorized)
-				return
 			case ErrSessionIdle:
+				logger.Infof(requestID, uuid.Nil, "RequireAuth: session idle timeout")
 				http.Error(w, "session idle timeout", http.StatusUnauthorized)
-				return
 			default:
+				logger.Errorf(requestID, uuid.Nil, "RequireAuth: session lookup failed: %v", err)
 				http.Error(w, "invalid session", http.StatusUnauthorized)
-				return
 			}
+			return
 		}
 
 		_ = TouchSession(session)
@@ -50,6 +58,7 @@ func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 func RequireRole(roles ...string) func(http.HandlerFunc) http.HandlerFunc {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return RequireAuth(func(w http.ResponseWriter, r *http.Request) {
+			requestID := r.Context().Value(RequestIDKey).(uuid.UUID)
 			role := r.Context().Value(RoleKey).(string)
 
 			for _, allowed := range roles {
@@ -59,6 +68,7 @@ func RequireRole(roles ...string) func(http.HandlerFunc) http.HandlerFunc {
 				}
 			}
 
+			logger.Infof(requestID, uuid.Nil, "RequireRole: access denied for role %q", role)
 			http.Error(w, "forbidden", http.StatusForbidden)
 		})
 	}

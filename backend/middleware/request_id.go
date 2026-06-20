@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 
+	"FileLogix/utilities/logger"
+
 	"github.com/google/uuid"
 )
 
@@ -16,6 +18,8 @@ func WithRequestID(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), RequestIDKey, id)
 
 		w.Header().Set("X-Request-ID", id.String())
+
+		logger.Infof(id, uuid.Nil, "%s %s", r.Method, r.URL.Path)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

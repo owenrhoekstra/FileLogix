@@ -65,30 +65,24 @@ func ProtectedRoutes() http.Handler {
 		),
 	)
 
-	mux.Handle("/documents/{id}",
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			switch r.Method {
-			case http.MethodGet:
-				middleware.RequirePermission("can_read")(
-					http.HandlerFunc(viewRecord.FetchRecordDetails),
-				).ServeHTTP(w, r)
+	mux.Handle("GET /documents/{id}",
+		middleware.RequirePermission("can_read")(
+			http.HandlerFunc(viewRecord.FetchRecordDetails),
+		),
+	)
 
-			case http.MethodDelete:
-				middleware.RequirePermission("can_delete")(
-					elevation.RequireActionElevation(
-						http.HandlerFunc(viewRecord.DeleteRecord),
-					),
-				).ServeHTTP(w, r)
+	mux.Handle("DELETE /documents/{id}",
+		middleware.RequirePermission("can_delete")(
+			elevation.RequireActionElevation(
+				http.HandlerFunc(viewRecord.DeleteRecord),
+			),
+		),
+	)
 
-			case http.MethodPatch:
-				middleware.RequirePermission("can_edit")(
-					http.HandlerFunc(editRecord.HandleRecordEdit),
-				).ServeHTTP(w, r)
-
-			default:
-				w.WriteHeader(http.StatusMethodNotAllowed)
-			}
-		}),
+	mux.Handle("PATCH /documents/{id}",
+		middleware.RequirePermission("can_edit")(
+			http.HandlerFunc(editRecord.HandleRecordEdit),
+		),
 	)
 
 	mux.Handle("/documents/{id}/restore",

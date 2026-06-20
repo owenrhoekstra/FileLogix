@@ -1,35 +1,32 @@
 package authentication
 
 import (
-	"log"
 	"os"
 
+	"FileLogix/utilities/logger"
+
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 )
 
 var webAuthn *webauthn.WebAuthn
 
 func InitWebAuthn() {
-	// Load .env file if it exists (ignore error if file doesn't exist)
-	err := godotenv.Load()
-	if err != nil {
-		log.Println("No .env file found, using environment variables")
+	if err := godotenv.Load(); err != nil {
+		logger.Infof(uuid.Nil, uuid.Nil, "InitWebAuthn: no .env file found, using environment variables")
 	}
 
-	// Get RPID from environment variable, fallback to default
 	rpid := os.Getenv("WEBAUTHN_RPID")
 	if rpid == "" {
-		rpid = "orh-home-server.tailac3f56.ts.net" // default for dev
+		rpid = "orh-home-server.tailac3f56.ts.net"
 	}
 
-	// Get RP Origins from environment variable, fallback to default
 	rpOrigin := os.Getenv("WEBAUTHN_RP_ORIGIN")
 	if rpOrigin == "" {
-		rpOrigin = "https://orh-home-server.tailac3f56.ts.net" // default for dev
+		rpOrigin = "https://orh-home-server.tailac3f56.ts.net"
 	}
 
-	// Build list of allowed origins (main + www variants + Cloudflare Access)
 	origins := []string{rpOrigin}
 	if rpid == "filelogix.org" {
 		origins = []string{
@@ -39,21 +36,20 @@ func InitWebAuthn() {
 		}
 	}
 
-	log.Printf("WebAuthn Config - RPID: %s, RPOrigins: %v", rpid, origins)
-	log.Printf("Environment variables - WEBAUTHN_RPID: %s, WEBAUTHN_RP_ORIGIN: %s",
-		os.Getenv("WEBAUTHN_RPID"), os.Getenv("WEBAUTHN_RP_ORIGIN"))
+	logger.Infof(uuid.Nil, uuid.Nil, "InitWebAuthn: RPID: %s, RPOrigins: %v", rpid, origins)
 
+	var err error
 	webAuthn, err = webauthn.New(&webauthn.Config{
 		RPDisplayName: "FileLogix",
 		RPID:          rpid,
 		RPOrigins:     origins,
 	})
 	if err != nil {
-		log.Printf("WebAuthn initialization error: %v", err)
+		logger.Errorf(uuid.Nil, uuid.Nil, "InitWebAuthn: failed to initialise WebAuthn: %v", err)
 		panic(err)
 	}
 
-	log.Println("WebAuthn initialized successfully")
+	logger.Infof(uuid.Nil, uuid.Nil, "InitWebAuthn: initialised successfully")
 }
 
 func GetWebAuthn() *webauthn.WebAuthn {
