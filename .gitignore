@@ -2,3 +2,5 @@
 *.sh
 
 global-documentation
+.DS_Store
+._*

@@ -78,7 +78,7 @@ func main() {
 		),
 	)
 
-	// 🔒 AUTHENTICATED ROUTES
+	// 🔒 CHECK AUTHENTICATION
 	mux.Handle("/api/auth/me",
 		middleware.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 			userID := r.Context().Value(middleware.UserIDKey).(uuid.UUID)

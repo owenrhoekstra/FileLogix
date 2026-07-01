@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="GoProfileHistory">
+    <profile entry="$USER_HOME$/GoLandProfiles/go_build_FileLogix-heap_with_gc-2026-06-30-203454-860.pprof">
+      <GoProfileMapEntry>
+        <option name="buildAnchorMillis" value="1782866088399" />
+        <option name="file" value="go_build_FileLogix-heap_with_gc-2026-06-30-203454-860.pprof" />
+        <option name="ours" value="true" />
+        <option name="profileType" value="HEAP_GC" />
+      </GoProfileMapEntry>
+    </profile>
+    <profile entry="$USER_HOME$/GoLandProfiles/go_build_FileLogix-goroutine-2026-06-30-203521-235.pprof">
+      <GoProfileMapEntry>
+        <option name="buildAnchorMillis" value="1782866088399" />
+        <option name="file" value="go_build_FileLogix-goroutine-2026-06-30-203521-235.pprof" />
+        <option name="ours" value="true" />
+        <option name="profileType" value="GOROUTINE" />
+      </GoProfileMapEntry>
+    </profile>
+    <profile entry="$USER_HOME$/GoLandProfiles/go_build_FileLogix-heap_without_gc-2026-06-30-203558-111.pprof">
+      <GoProfileMapEntry>
+        <option name="buildAnchorMillis" value="1782866088399" />
+        <option name="file" value="go_build_FileLogix-heap_without_gc-2026-06-30-203558-111.pprof" />
+        <option name="ours" value="true" />
+        <option name="profileType" value="HEAP" />
+      </GoProfileMapEntry>
+    </profile>
+    <profile entry="$USER_HOME$/GoLandProfiles/go_build_FileLogix-allocs-2026-06-30-203608-004.pprof">
+      <GoProfileMapEntry>
+        <option name="buildAnchorMillis" value="1782866088399" />
+        <option name="file" value="go_build_FileLogix-allocs-2026-06-30-203608-004.pprof" />
+        <option name="ours" value="true" />
+        <option name="profileType" value="ALLOCS" />
+      </GoProfileMapEntry>
+    </profile>
+    <profile entry="$USER_HOME$/GoLandProfiles/go_build_FileLogix-cpu-2026-06-30-203836-710.pprof">
+      <GoProfileMapEntry>
+        <option name="buildAnchorMillis" value="1782866088399" />
+        <option name="file" value="go_build_FileLogix-cpu-2026-06-30-203836-710.pprof" />
+        <option name="ours" value="true" />
+        <option name="profileType" value="CPU" />
+      </GoProfileMapEntry>
+    </profile>
+  </component>
+</project>

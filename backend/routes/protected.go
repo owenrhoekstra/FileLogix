@@ -7,21 +7,12 @@ import (
 	"FileLogix/internal/fileRecord"
 	"FileLogix/internal/viewRecord"
 	"FileLogix/middleware"
-	"FileLogix/ocr"
 
 	"net/http"
 )
 
 func ProtectedRoutes() http.Handler {
 	mux := http.NewServeMux()
-
-	mux.Handle("/ocr",
-		middleware.RequireRole("superuser", "manager", "user", "contributor")(
-			elevation.RequireActionElevation(
-				http.HandlerFunc(ocr.OcrEndpoint),
-			),
-		),
-	)
 
 	mux.Handle("/records",
 		middleware.RequirePermission("can_write")(

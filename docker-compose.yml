@@ -25,14 +25,22 @@ services:
       - REDIS_PORT=${REDIS_PORT}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - PYTHON_OCR_URL=http://ocr:8081/ocr
+      - RCLONE_REMOTE=b2crypt:FileLogix
+      - RCLONE_CONFIG=/config/rclone/rclone.conf
     volumes:
       - /var/run/postgresql:/var/run/postgresql
       - /srv/FileLogix/files:/srv/FileLogix/files
+      - /srv/FileLogix/backups:/srv/FileLogix/backups
+      - /home/owenrhoekstra/.config/rclone/rclone.conf:/config/rclone/rclone.conf:ro
     depends_on:
-      - frontend
-      - redis
-      - ocr
-      - cloudflared
+      frontend:
+        condition: service_started
+      redis:
+        condition: service_started
+      ocr:
+        condition: service_healthy
+      cloudflared:
+        condition: service_started
     restart: unless-stopped
 
 
@@ -65,7 +73,22 @@ services:
     build: ./ocr
     ports:
       - "127.0.0.1:8081:8081"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"   # AMQP protocol port (used by your Go/Python apps)
+      - "15672:15672" # Web Management UI port (open http://localhost:15672 in your browser)
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
 
 volumes:
   vue_dist:

@@ -7,6 +7,15 @@ from fastapi import FastAPI, UploadFile, File
 
 app = FastAPI()
 
+@app.get("/health")
+def health():
+    try:
+        pytesseract.get_tesseract_version()
+        return {"status": "ok"}
+    except Exception as e:
+        from fastapi import Response
+        return Response(content=str(e), status_code=503)
+
 @app.post("/ocr")
 async def ocr(image: UploadFile = File()):
     data = await image.read()
