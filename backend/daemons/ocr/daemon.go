@@ -12,6 +12,7 @@ import (
 const pollInterval = 5 * time.Minute
 
 func Start(ctx context.Context) {
+	return
 	logger.Infof(uuid.Nil, uuid.Nil, "ocr daemon started")
 
 	if err := resetStuck(); err != nil {

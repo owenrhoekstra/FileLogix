@@ -27,6 +27,10 @@ services:
       - PYTHON_OCR_URL=http://ocr:8081/ocr
       - RCLONE_REMOTE=b2crypt:FileLogix
       - RCLONE_CONFIG=/config/rclone/rclone.conf
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
     volumes:
       - /var/run/postgresql:/var/run/postgresql
       - /srv/FileLogix/files:/srv/FileLogix/files
@@ -71,6 +75,17 @@ services:
 
   ocr:
     build: ./ocr
+    environment:
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+    volumes:
+      - /var/run/postgresql:/var/run/postgresql
+      - /srv/FileLogix/files:/srv/FileLogix/files
     ports:
       - "127.0.0.1:8081:8081"
     healthcheck:
@@ -84,11 +99,11 @@ services:
   rabbitmq:
     image: rabbitmq:3-management-alpine
     ports:
-      - "5672:5672"   # AMQP protocol port (used by your Go/Python apps)
-      - "15672:15672" # Web Management UI port (open http://localhost:15672 in your browser)
+      - "127.0.0.1:5672:5672"   # AMQP protocol port (used by your Go/Python apps)
+      - "127.0.0.1:15672:15672" # Web Management UI port (open http://localhost:15672 in your browser)
     environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
+     - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+     - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
 
 volumes:
   vue_dist:

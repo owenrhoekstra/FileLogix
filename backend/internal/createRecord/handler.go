@@ -2,7 +2,6 @@ package createRecord
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -20,9 +19,17 @@ const (
 )
 
 func Create(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	requestID, reqOk := ctx.Value(middleware.RequestIDKey).(uuid.UUID)
+	userID, userOk := ctx.Value(middleware.UserIDKey).(uuid.UUID)
+	if !reqOk || !userOk {
+		logger.Errorf(uuid.Nil, uuid.Nil, "Create: missing requestID or userID in context")
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
 
 	if err := r.ParseMultipartForm(maxFormSize); err != nil {
-		log.Println("ParseMultipartForm error:", err)
+		logger.Errorf(requestID, userID, "Create: ParseMultipartForm error: %v", err)
 		http.Error(w, "invalid form data", http.StatusBadRequest)
 		return
 	}
@@ -85,28 +92,19 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ---- BUILD INPUT ----
-	uidRaw := r.Context().Value(middleware.UserIDKey)
-
-	uploadedBy, ok := uidRaw.(uuid.UUID)
-	if !ok {
-		log.Println("UserIDKey type assertion failed, got:", uidRaw)
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
-
 	input := CreateRecordInput{
 		Name:       documentName,
 		DateOfDoc:  documentDate,
 		Sensitive:  sensitivity,
 		Types:      documentTypes,
 		Files:      files,
-		UploadedBy: uploadedBy,
+		UploadedBy: userID,
 	}
 
 	// ---- SERVICE ----
-	documentID, err := CreateRecord(input)
+	documentID, err := CreateRecord(ctx, input)
 	if err != nil {
-		log.Println("CreateRecord error:", err)
+		logger.Errorf(requestID, userID, "Create: CreateRecord error: %v", err)
 		http.Error(w, "failed to create record", http.StatusInternalServerError)
 		return
 	}
@@ -118,15 +116,25 @@ func Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func PrintLabel(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	requestID, reqOk := ctx.Value(middleware.RequestIDKey).(uuid.UUID)
+	userID, userOk := ctx.Value(middleware.UserIDKey).(uuid.UUID)
+	if !reqOk || !userOk {
+		logger.Errorf(uuid.Nil, uuid.Nil, "PrintLabel: missing requestID or userID in context")
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 	if id == "" {
+		logger.Errorf(requestID, userID, "PrintLabel: missing id path value")
 		http.Error(w, "missing id", http.StatusBadRequest)
 		return
 	}
 
 	pdfBytes, err := GenerateLabel(id)
 	if err != nil {
-		println("GenerateLabel FAILED:", err.Error())
+		logger.Errorf(requestID, userID, "PrintLabel: GenerateLabel failed for id %s: %v", id, err)
 		http.Error(w, "failed to generate label", http.StatusInternalServerError)
 		return
 	}

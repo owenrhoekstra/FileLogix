@@ -6,6 +6,7 @@ import (
 	"FileLogix/database"
 	"FileLogix/elevation"
 	"FileLogix/middleware"
+	"FileLogix/rabbitmq"
 	"FileLogix/routes"
 	"FileLogix/utilities/recovery"
 
@@ -27,9 +28,14 @@ func main() {
 	defer cancel()
 
 	authentication.InitWebAuthn()
+
 	database.Init()
 	database.InitRedis()
 	database.RunMigrations(database.DB)
+
+	if err := rabbitmq.Init(); err != nil {
+		log.Fatal("rabbitmq init failed: ", err)
+	}
 
 	// Wire WebAuthn instance into elevation package
 	elevation.WebAuthn = authentication.GetWebAuthn()
